@@ -161,7 +161,6 @@ export default function AlugueisPage() {
             <PageHeader
                 titulo="Aluguéis e Reservas"
                 subtitulo="Registro de estadias e reservas futuras"
-                botao={{ label: "Nova Reserva", onClick: () => {} }}
             />
 
             {/* Filtro de residência */}

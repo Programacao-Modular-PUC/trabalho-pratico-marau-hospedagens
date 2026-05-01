@@ -46,19 +46,24 @@ export default function QuartoCard({ q }: { q: Quarto }) {
 
                 {/* Comodidades */}
                 <div className="flex flex-wrap gap-2">
-                    {q.comodidades.map((c) => (
+                    {q.comodidades.length > 0 ? (
+                        q.comodidades.map((c) => (
+                            <span
+                                key={c.nome}
+                                className="px-4 py-1.5 rounded-full text-sm font-medium"
+                                style={{ backgroundColor: "#E8F0F3", color: "#1A4A5E" }}
+                            >
+                {c.nome}
+            </span>
+                        ))
+                    ) : (
                         <span
-                            key={c.nome}
                             className="px-4 py-1.5 rounded-full text-sm font-medium"
-                            style={
-                                c.inclusa
-                                    ? { backgroundColor: "#E8F0F3", color: "#1A4A5E" }
-                                    : { backgroundColor: "#FAF5EE", color: "#9ca3af" }
-                            }
+                            style={{ backgroundColor: "#f3f4f6", color: "#9ca3af" }}
                         >
-                        {c.nome}
-                        </span>
-                    ))}
+            Sem adicionais
+        </span>
+                    )}
                 </div>
 
                 {/* Descrição */}
