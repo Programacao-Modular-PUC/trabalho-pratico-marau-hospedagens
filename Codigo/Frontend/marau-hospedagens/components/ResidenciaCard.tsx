@@ -47,7 +47,7 @@ export default function ResidenciaCard({ r }: { r: Residencia }) {
           <span className="px-4 py-1.5 rounded-full text-sm font-medium text-white" style={{ backgroundColor: "#1A4A5E" }}>
             {r.disponiveis} disponíveis
           </span>
-                    <span className="px-4 py-1.5 rounded-full text-sm font-medium text-gray-600 bg-gray-100">
+                    <span className="px-4 py-1.5 rounded-full text-sm font-medium text-gray-600 bg-[#F4EADC]">
             {r.ocupados} ocupado{r.ocupados !== 1 ? "s" : ""}
           </span>
                 </div>

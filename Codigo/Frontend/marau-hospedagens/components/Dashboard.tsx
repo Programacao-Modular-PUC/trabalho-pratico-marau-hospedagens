@@ -21,7 +21,7 @@ export default function DashboardPage() {
             {/* Header */}
             <PageHeader
                 titulo="Painel Geral"
-                subtitulo="Dados Referentes: 2026"
+                subtitulo="Ano Referente: 2026"
                 botao={{ label: "Novo Aluguel", onClick: () => {} }}
             />
 
