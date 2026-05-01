@@ -1,12 +1,26 @@
+import AnimatedNumber from "@/components/AnimatedNumber";
+
 type MetricCardProps = {
     label: string;
-    value: string;
+    value: number;
+    prefix?: string;
+    suffix?: string;
+    decimals?: number;
     sub: string;
     borderColor: string;
     valueColor: string;
 };
 
-export default function MetricCard({ label, value, sub, borderColor, valueColor }: MetricCardProps) {
+export default function MetricCard({
+                                       label,
+                                       value,
+                                       prefix,
+                                       suffix,
+                                       decimals = 0,
+                                       sub,
+                                       borderColor,
+                                       valueColor,
+                                   }: MetricCardProps) {
     return (
         <div
             className="bg-white rounded-2xl shadow-sm px-6 py-5 flex flex-col gap-1 border-l-4"
@@ -16,7 +30,7 @@ export default function MetricCard({ label, value, sub, borderColor, valueColor 
         {label}
       </span>
             <span className="text-4xl font-bold leading-tight" style={{ color: valueColor }}>
-        {value}
+        <AnimatedNumber value={value} prefix={prefix} suffix={suffix} decimals={decimals} />
       </span>
             <span className="text-sm text-gray-500">{sub}</span>
         </div>

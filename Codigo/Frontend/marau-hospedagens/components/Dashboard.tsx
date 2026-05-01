@@ -27,10 +27,10 @@ export default function DashboardPage() {
 
             {/* Cards de Mátrica */}
             <div className="grid grid-cols-4 gap-4 mb-8">
-                <MetricCard label="Residências"      value="4"            sub="cadastradas"    borderColor="#1C4B60" valueColor="#1C4B60" />
-                <MetricCard label="Quartos Ocupados" value="7"            sub="de 14 no total" borderColor="#C23E23" valueColor="#C23E23" />
-                <MetricCard label="Receita do Mês"   value="R$ 4.820,00" sub="15 aluguéis"    borderColor="#47977B" valueColor="#47977B" />
-                <MetricCard label="Clientes"         value="23"           sub="cadastrados"    borderColor="#4EA3B8" valueColor="#4EA3B8" />
+                <MetricCard label="Residências"      value={4}      sub="cadastradas"    borderColor="#1C4B60" valueColor="#1C4B60" />
+                <MetricCard label="Quartos Ocupados" value={7}      sub="de 14 no total" borderColor="#C23E23" valueColor="#C23E23" />
+                <MetricCard label="Receita do Mês"   value={4820}   sub="15 aluguéis"    borderColor="#47977B" valueColor="#47977B" prefix="R$ " decimals={2} />
+                <MetricCard label="Clientes"         value={23}     sub="cadastrados"    borderColor="#4EA3B8" valueColor="#38bdf8" />
             </div>
 
             <div className="grid grid-cols-[600px_1fr] gap-15">
