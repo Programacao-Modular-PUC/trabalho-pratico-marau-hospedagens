@@ -52,7 +52,7 @@ export default function QuartoCard({ q }: { q: Quarto }) {
                             className="px-4 py-1.5 rounded-full text-sm font-medium"
                             style={
                                 c.inclusa
-                                    ? { backgroundColor: "#1A4A5E", color: "white" }
+                                    ? { backgroundColor: "#E8F0F3", color: "#1A4A5E" }
                                     : { backgroundColor: "#FAF5EE", color: "#9ca3af" }
                             }
                         >

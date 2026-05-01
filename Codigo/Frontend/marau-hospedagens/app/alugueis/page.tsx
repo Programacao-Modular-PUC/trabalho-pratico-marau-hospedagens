@@ -78,7 +78,7 @@ export default function AlugueisPage() {
             <PageHeader
                 titulo="Aluguéis e Reservas"
                 subtitulo="Registro de estadias e reservas futuras"
-                botao={{ label: "Novo Aluguel", onClick: () => {} }}
+                botao={{ label: "Nova Reserva", onClick: () => {} }}
             />
 
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden">

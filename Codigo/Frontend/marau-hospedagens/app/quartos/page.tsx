@@ -12,7 +12,6 @@ const quartos = [
         status: "disponivel" as const,
         comodidades: [
             { nome: "Ar-Condicionado", inclusa: true },
-            { nome: "Hidromassagem", inclusa: false },
         ],
         descricao: "Valor base: R$110 + Ar: R$10 = R$120/diária",
         cor: "#1A4A5E",
@@ -36,10 +35,7 @@ const quartos = [
         residencia: "Casa da Praia",
         preco: 95,
         status: "disponivel" as const,
-        comodidades: [
-            { nome: "Ar-Condicionado", inclusa: false },
-            { nome: "Hidromassagem", inclusa: false },
-        ],
+        comodidades: [],
         descricao: "Valor base: R$95 = R$95/diária",
         cor: "#1A4A5E",
     },

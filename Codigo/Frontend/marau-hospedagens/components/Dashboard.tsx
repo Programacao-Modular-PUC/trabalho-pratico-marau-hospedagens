@@ -22,7 +22,7 @@ export default function DashboardPage() {
             <PageHeader
                 titulo="Painel Geral"
                 subtitulo="Ano Referente: 2026"
-                botao={{ label: "Novo Aluguel", onClick: () => {} }}
+                botao={{ label: "Nova Reserva", onClick: () => {} }}
             />
 
             {/* Cards de Mátrica */}
