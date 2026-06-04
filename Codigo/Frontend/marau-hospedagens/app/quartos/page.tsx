@@ -1,17 +1,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 import QuartoCard from "@/components/QuartoCard";
 import CadastrarQuartoModal from "@/components/CadastrarQuartoModal";
 
-const residencias = ["Todas", "Casa da Praia", "Pousada do Mato"];
+const residencias = ["Todas", "Casa Praiana", "Pousada do Mato"];
 
 const quartos = [
     {
         id: 1,
         nome: "Quarto Solteiro",
-        residencia: "Casa da Praia",
+        residencia: "Casa Praiana",
         preco: 120,
         status: "disponivel" as const,
         comodidades: [{ nome: "Ar-Condicionado", inclusa: true }],
@@ -34,7 +35,7 @@ const quartos = [
     {
         id: 3,
         nome: "Quarto Casal",
-        residencia: "Casa da Praia",
+        residencia: "Casa Praiana",
         preco: 95,
         status: "disponivel" as const,
         comodidades: [],
@@ -77,7 +78,13 @@ function Toast({ onDone }: { onDone: () => void }) {
 export default function QuartosPage() {
     const [modalAberto, setModalAberto] = useState(false);
     const [showToast, setShowToast] = useState(false);
+    const searchParams = useSearchParams();
     const [residenciaSelecionada, setResidenciaSelecionada] = useState("Todas");
+
+    useEffect(() => {
+        const param = searchParams.get("residencia");
+        if (param) setResidenciaSelecionada(param);
+    }, [searchParams]);
 
     const residenciasParaExibir = residencias.filter((r) => r !== "Todas");
 

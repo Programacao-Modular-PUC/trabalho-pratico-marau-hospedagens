@@ -22,7 +22,7 @@ const alugueis: Aluguel[] = [
     {
         id: 1,
         cliente: "Ana Lima",
-        residencia: "Casa da Praia",
+        residencia: "Casa Praiana",
         quarto: "Qto 02",
         entrada: "17/04 12:00",
         saida: "21/04 12:00",
@@ -34,7 +34,7 @@ const alugueis: Aluguel[] = [
     {
         id: 2,
         cliente: "João Santos",
-        residencia: "Casa da Praia",
+        residencia: "Casa Praiana",
         quarto: "Qto 01",
         entrada: "12/04 12:00",
         saida: "16/04 12:00",
@@ -69,7 +69,7 @@ const alugueis: Aluguel[] = [
     },
 ];
 
-const residencias = ["Todas", "Casa da Praia", "Pousada do Mato"];
+const residencias = ["Todas", "Casa Praiana", "Pousada do Mato"];
 
 const COLS = "1.4fr 1fr 1fr 1fr 0.6fr 1fr 1fr 0.6fr";
 const BRAND = "#1A4A5E";

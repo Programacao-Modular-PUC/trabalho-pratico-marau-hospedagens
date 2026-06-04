@@ -1,3 +1,7 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+
 type Residencia = {
     id: number;
     nome: string;
@@ -12,6 +16,8 @@ type Residencia = {
 };
 
 export default function ResidenciaCard({ r }: { r: Residencia }) {
+    const router = useRouter();
+
     return (
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
             {/* Header colorido */}
@@ -54,28 +60,33 @@ export default function ResidenciaCard({ r }: { r: Residencia }) {
 
                 {/* Botões */}
                 <div className="flex justify-end gap-2 pt-1">
-                    <button className="px-4 py-2 rounded-xl text-sm font-medium border-2 text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
-                            style={{ borderColor: "#1A4A5E", color: "#1A4A5E" }}
-                            onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = "#1A4A5E";
-                                e.currentTarget.style.color = "white";
-                            }}
-                            onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = "transparent";
-                                e.currentTarget.style.color = "#1A4A5E";
-                            }}>
+                    <button
+                        onClick={() => router.push(`/quartos?residencia=${encodeURIComponent(r.nome)}`)}
+                        className="px-4 py-2 rounded-xl text-sm font-medium border-2 transition-colors cursor-pointer"
+                        style={{ borderColor: "#1A4A5E", color: "#1A4A5E" }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = "#1A4A5E";
+                            e.currentTarget.style.color = "white";
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = "transparent";
+                            e.currentTarget.style.color = "#1A4A5E";
+                        }}
+                    >
                         Ver Quartos
                     </button>
-                    <button className="px-4 py-2 rounded-xl text-sm font-medium border-2 transition-colors cursor-pointer"
-                            style={{ borderColor: "#1A4A5E", color: "#1A4A5E" }}
-                            onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = "#1A4A5E";
-                                e.currentTarget.style.color = "white";
-                            }}
-                            onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = "transparent";
-                                e.currentTarget.style.color = "#1A4A5E";
-                            }}>
+                    <button
+                        className="px-4 py-2 rounded-xl text-sm font-medium border-2 transition-colors cursor-pointer"
+                        style={{ borderColor: "#1A4A5E", color: "#1A4A5E" }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = "#1A4A5E";
+                            e.currentTarget.style.color = "white";
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = "transparent";
+                            e.currentTarget.style.color = "#1A4A5E";
+                        }}
+                    >
                         Histórico
                     </button>
                 </div>
