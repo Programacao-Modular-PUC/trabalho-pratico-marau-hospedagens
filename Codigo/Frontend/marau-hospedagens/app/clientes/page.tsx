@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import PageHeader from "@/components/PageHeader";
 import NovoClienteModal from "@/components/NovoClienteModal";
+import HistoricoClienteModal from "@/components/HistoricoClienteModal";
 
 type StatusHospedagem = "ativo" | "data" | "reserva";
 
@@ -111,6 +112,7 @@ function Toast({ onDone }: { onDone: () => void }) {
 export default function ClientesPage() {
     const [modalAberto, setModalAberto] = useState(false);
     const [showToast, setShowToast] = useState(false);
+    const [clienteSelecionado, setClienteSelecionado] = useState<typeof clientes[0] | null>(null);
 
     return (
         <div className="flex-1 px-10 py-8 overflow-auto">
@@ -153,6 +155,7 @@ export default function ClientesPage() {
               <StatusBadge tipo={c.statusTipo} label={c.ultimaHospedagem} />
             </span>
                         <button
+                            onClick={() => setClienteSelecionado(c)}
                             className="px-4 py-1.5 rounded-xl text-sm font-medium border-2 transition-colors cursor-pointer"
                             style={{ borderColor: "#1A4A5E", color: "#1A4A5E" }}
                             onMouseEnter={(e) => {
@@ -176,6 +179,12 @@ export default function ClientesPage() {
                         setModalAberto(false);
                         setShowToast(true);
                     }}
+                />
+            )}
+            {clienteSelecionado && (
+                <HistoricoClienteModal
+                    cliente={clienteSelecionado}
+                    onClose={() => setClienteSelecionado(null)}
                 />
             )}
         </div>
