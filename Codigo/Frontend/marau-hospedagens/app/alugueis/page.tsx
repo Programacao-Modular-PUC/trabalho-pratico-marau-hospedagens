@@ -2,6 +2,7 @@
 
 import PageHeader from "@/components/PageHeader";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 type StatusAluguel = "ocupado" | "reserva" | "concluido";
 
@@ -92,6 +93,8 @@ function StatusBadge({ status }: { status: StatusAluguel }) {
 }
 
 function TabelaAlugueis({ itens }: { itens: Aluguel[] }) {
+    const router = useRouter();
+
     if (itens.length === 0) return (
         <p className="text-sm text-gray-400 px-6 py-6">Nenhum aluguel encontrado.</p>
     );
@@ -130,6 +133,11 @@ function TabelaAlugueis({ itens }: { itens: Aluguel[] }) {
                     <button
                         className="px-4 py-1.5 rounded-xl text-sm font-medium border-2 transition-colors cursor-pointer"
                         style={{ borderColor: BRAND, color: BRAND }}
+                        onClick={() => {
+                            if (a.acaoLabel === "Recibo") {
+                                window.open(`/recibo?id=${a.id}`, "_blank");
+                            }
+                        }}
                         onMouseEnter={(e) => {
                             e.currentTarget.style.backgroundColor = BRAND;
                             e.currentTarget.style.color = "white";

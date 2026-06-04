@@ -67,17 +67,6 @@ const navItems: NavItem[] = [
             </svg>
         ),
     },
-    {
-        label: "Recibo",
-        href: "/recibo",
-        icon: (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z" />
-                <line x1="8" y1="10" x2="16" y2="10" />
-                <line x1="8" y1="14" x2="16" y2="14" />
-            </svg>
-        ),
-    },
 ];
 
 const BRAND = "#1A4A5E";
