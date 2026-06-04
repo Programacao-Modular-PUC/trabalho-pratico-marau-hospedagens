@@ -11,6 +11,7 @@ const residencias = ["Todas", "Casa Praiana", "Pousada do Mato"];
 const quartos = [
     {
         id: 1,
+        tipo: "Individual",
         nome: "Quarto Solteiro",
         residencia: "Casa Praiana",
         preco: 120,
@@ -21,6 +22,7 @@ const quartos = [
     },
     {
         id: 2,
+        tipo: "Duplo",
         nome: "Quarto Casal",
         residencia: "Pousada do Mato",
         preco: 200,
@@ -34,6 +36,7 @@ const quartos = [
     },
     {
         id: 3,
+        tipo: "Duplo",
         nome: "Quarto Casal",
         residencia: "Casa Praiana",
         preco: 95,
@@ -78,18 +81,24 @@ function Toast({ onDone }: { onDone: () => void }) {
 export default function QuartosPage() {
     const [modalAberto, setModalAberto] = useState(false);
     const [showToast, setShowToast] = useState(false);
-    const searchParams = useSearchParams();
     const [residenciaSelecionada, setResidenciaSelecionada] = useState("Todas");
+    const [tipoSelecionado, setTipoSelecionado] = useState("Todos");
+
+    const searchParams = useSearchParams();
 
     useEffect(() => {
         const param = searchParams.get("residencia");
         if (param) setResidenciaSelecionada(param);
     }, [searchParams]);
 
+    const tipos = ["Todos", "Individual", "Duplo", "Familia"];
     const residenciasParaExibir = residencias.filter((r) => r !== "Todas");
 
     const quartosFiltrados = (residencia: string) =>
-        quartos.filter((q) => q.residencia === residencia);
+        quartos.filter((q) =>
+            q.residencia === residencia &&
+            (tipoSelecionado === "Todos" || q.tipo === tipoSelecionado)
+        );
 
     return (
         <div className="flex-1 px-10 py-8 overflow-auto">
@@ -101,22 +110,44 @@ export default function QuartosPage() {
                 botao={{ label: "Cadastrar Quarto", onClick: () => setModalAberto(true) }}
             />
 
-            {/* Filtro */}
-            <div className="flex items-center gap-3 mb-8">
-                <label className="text-sm font-semibold text-gray-600">Residência:</label>
-                <button className="flex items-center gap-2 border border-gray-200 rounded-lg px-4 py-2 text-sm text-gray-700 bg-white shadow-sm relative cursor-pointer">
-                    <select
-                        value={residenciaSelecionada}
-                        onChange={(e) => setResidenciaSelecionada(e.target.value)}
-                        className="absolute inset-0 opacity-0 cursor-pointer w-full"
-                    >
-                        {residencias.map((r) => <option key={r}>{r}</option>)}
-                    </select>
-                    {residenciaSelecionada}
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <polyline points="6 9 12 15 18 9" />
-                    </svg>
-                </button>
+            {/* Filtros */}
+            <div className="flex items-center gap-6 mb-8">
+                <div className="flex items-center gap-3">
+                    <label className="text-sm font-semibold text-gray-600">Residência:</label>
+                    <button className="flex items-center gap-2 border border-gray-200 rounded-lg px-4 py-2 text-sm text-gray-700 bg-white shadow-sm relative cursor-pointer">
+                        <select
+                            value={residenciaSelecionada}
+                            onChange={(e) => setResidenciaSelecionada(e.target.value)}
+                            className="absolute inset-0 opacity-0 cursor-pointer w-full"
+                        >
+                            {residencias.map((r) => <option key={r}>{r}</option>)}
+                        </select>
+                        {residenciaSelecionada}
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <polyline points="6 9 12 15 18 9" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div className="flex items-center gap-3">
+                    <label className="text-sm font-semibold text-gray-600">Tipo:</label>
+                    <div className="flex gap-2">
+                        {tipos.map((t) => (
+                            <button
+                                key={t}
+                                onClick={() => setTipoSelecionado(t)}
+                                className="px-4 py-2 rounded-lg text-sm font-medium border transition-colors cursor-pointer"
+                                style={{
+                                    borderColor: tipoSelecionado === t ? "#1A4A5E" : "#e5e7eb",
+                                    backgroundColor: tipoSelecionado === t ? "#E8F0F3" : "white",
+                                    color: tipoSelecionado === t ? "#1A4A5E" : "#6b7280",
+                                }}
+                            >
+                                {t}
+                            </button>
+                        ))}
+                    </div>
+                </div>
             </div>
 
             {/* Listagem por residência */}
