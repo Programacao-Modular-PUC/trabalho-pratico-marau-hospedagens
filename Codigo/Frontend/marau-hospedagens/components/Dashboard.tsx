@@ -9,21 +9,15 @@ import NovaReservaModal from "@/components/NovaReservaModal";
 
 function Toast({ onDone }: { onDone: () => void }) {
     const [visible, setVisible] = useState(false);
-
     useEffect(() => {
         setTimeout(() => setVisible(true), 50);
         setTimeout(() => setVisible(false), 3000);
         setTimeout(() => onDone(), 3500);
     }, []);
-
     return (
         <div
             className="fixed top-6 right-6 z-[100] flex items-center gap-3 px-5 py-4 rounded-2xl shadow-lg transition-all duration-500"
-            style={{
-                backgroundColor: "#1A4A5E",
-                opacity: visible ? 1 : 0,
-                transform: visible ? "translateY(0)" : "translateY(-16px)",
-            }}
+            style={{ backgroundColor: "#1A4A5E", opacity: visible ? 1 : 0, transform: visible ? "translateY(0)" : "translateY(-16px)" }}
         >
             <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
@@ -44,9 +38,33 @@ const history: HistoryEntry[] = [
     { id: 3, date: "15/04/2025", time: "12:00", text: "Check-out — Carlos Mendes · Pousada do Mato Qto 02" },
 ];
 
+function getMesAtual() {
+    return new Date().toLocaleString("pt-BR", { month: "long", year: "numeric" });
+}
+
 export default function DashboardPage() {
     const [modalAberto, setModalAberto] = useState(false);
     const [showToast, setShowToast] = useState(false);
+    const [entradaInicial, setEntradaInicial] = useState<string | undefined>();
+    const [saidaInicial, setSaidaInicial] = useState<string | undefined>();
+    const [residenciaInicial, setResidenciaInicial] = useState("");
+    const [quartoInicial, setQuartoInicial] = useState("");
+
+    const subtitulo = `Dados Referentes: ${getMesAtual().replace(/^\w/, (c) => c.toUpperCase())}`;
+
+    function handleRangeSelect(entrada: string, saida: string) {
+        setEntradaInicial(entrada);
+        setSaidaInicial(saida);
+        setModalAberto(true);
+    }
+
+    function handleFecharModal() {
+        setModalAberto(false);
+        setEntradaInicial(undefined);
+        setSaidaInicial(undefined);
+        setResidenciaInicial("");
+        setQuartoInicial("");
+    }
 
     return (
         <div className="flex-1 px-10 py-8 overflow-auto">
@@ -54,7 +72,7 @@ export default function DashboardPage() {
 
             <PageHeader
                 titulo="Painel Geral"
-                subtitulo="Dados Referentes: Abril 2025"
+                subtitulo={subtitulo}
                 botao={{ label: "Nova Reserva", onClick: () => setModalAberto(true) }}
             />
 
@@ -68,7 +86,9 @@ export default function DashboardPage() {
             <div className="grid grid-cols-[600px_1fr] gap-16">
                 <div>
                     <h2 className="text-base font-semibold text-gray-700 mb-3">Disponibilidade</h2>
-                    <AvailabilityCalendar />
+                    <AvailabilityCalendar onRangeSelect={handleRangeSelect}
+                                          onResidenciaChange={setResidenciaInicial}
+                                          onQuartoChange={setQuartoInicial}/>
                 </div>
                 <div>
                     <h2 className="text-base font-semibold text-gray-700 mb-4">Histórico Recente</h2>
@@ -78,9 +98,13 @@ export default function DashboardPage() {
 
             {modalAberto && (
                 <NovaReservaModal
-                    onClose={() => setModalAberto(false)}
+                    entradaInicial={entradaInicial}
+                    saidaInicial={saidaInicial}
+                    residenciaInicial={residenciaInicial}
+                    quartoInicial={quartoInicial}
+                    onClose={handleFecharModal}
                     onConfirm={() => {
-                        setModalAberto(false);
+                        handleFecharModal();
                         setShowToast(true);
                     }}
                 />

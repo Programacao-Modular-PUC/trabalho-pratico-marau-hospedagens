@@ -4,6 +4,20 @@ import { useState, useEffect } from "react";
 
 type DayStatus = "available" | "occupied" | "today" | "empty";
 
+type Props = {
+    onRangeSelect?: (entrada: string, saida: string) => void;
+    onResidenciaChange?: (v: string) => void;
+    onQuartoChange?: (v: string) => void;
+};
+
+const residencias = ["Casa Praiana", "Pousada do Mato"];
+
+const quartos = [
+    { id: 1, nome: "Quarto 01 (Solteiro)", residencia: "Casa Praiana",    diasOcupados: [8, 9, 10, 18] },
+    { id: 2, nome: "Quarto 01 (Casal)",    residencia: "Pousada do Mato", diasOcupados: [5, 6, 7, 19, 20, 24] },
+    { id: 3, nome: "Quarto 02 (Casal)",    residencia: "Casa Praiana",    diasOcupados: [12, 13, 25] },
+];
+
 function buildCalendar(year: number, month: number): (number | null)[] {
     const firstDay = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -12,115 +26,300 @@ function buildCalendar(year: number, month: number): (number | null)[] {
     return cells;
 }
 
-const dayLabels = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
-const occupiedDays = new Set([8, 9, 10, 18, 19, 20, 24]);
-const todayDay = 30;
-
-function dayStatus(day: number | null): DayStatus {
-    if (!day) return "empty";
-    if (day === todayDay) return "today";
-    if (occupiedDays.has(day)) return "occupied";
-    return "available";
+function toDateObj(year: number, month: number, day: number) {
+    return new Date(year, month, day);
 }
 
-const statusClass: Record<DayStatus, string> = {
-    available: "bg-green-100 text-green-700",
-    occupied: "bg-red-100 text-red-400",
-    today: "text-white font-bold",
-    empty: "",
-};
+function formatarData(year: number, month: number, day: number): string {
+    return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
 
-export default function AvailabilityCalendar() {
-    const [mes, setMes] = useState(3);
-    const [ano, setAno] = useState(2026);
+function formatarLabel(year: number, month: number, day: number): string {
+    return new Date(year, month, day).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+}
+
+const dayLabels = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
+const BRAND = "#1A4A5E";
+
+function SelectCalendario({ label, value, options, onChange, disabled }: {
+    label: string; value: string; options: string[];
+    onChange: (v: string) => void; disabled?: boolean;
+}) {
+    return (
+        <button
+            className="flex items-center gap-2 border border-gray-200 rounded-lg px-4 py-2 text-sm bg-white shadow-sm relative cursor-pointer"
+            style={{ color: value ? BRAND : "#6b7280", opacity: disabled ? 0.5 : 1 }}
+        >
+            <select
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                className="absolute inset-0 opacity-0 cursor-pointer w-full"
+                disabled={disabled}
+            >
+                <option value="">{label}</option>
+                {options.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+            <span>{value || label}</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="6 9 12 15 18 9" />
+            </svg>
+        </button>
+    );
+}
+
+export default function AvailabilityCalendar({ onRangeSelect, onResidenciaChange, onQuartoChange }: Props) {
+    const now = new Date();
+    const [mes, setMes] = useState(now.getMonth());
+    const [ano, setAno] = useState(now.getFullYear());
+    const [residenciaSelecionada, setResidenciaSelecionada] = useState("");
+    const [quartoSelecionado, setQuartoSelecionado] = useState("");
+
+    const [dataInicio, setDataInicio] = useState<Date | null>(null);
+    const [dataFim, setDataFim] = useState<Date | null>(null);
+    const [hover, setHover] = useState<Date | null>(null);
+
+    const todayDay = now.getDate();
+    const isCurrentMonth = mes === now.getMonth() && ano === now.getFullYear();
 
     useEffect(() => {
-        if (mes > 11) { setMes(0); setAno((a) => a + 1); }
+        if (mes > 11) { setMes(0);  setAno((a) => a + 1); }
         if (mes < 0)  { setMes(11); setAno((a) => a - 1); }
     }, [mes]);
+
+    function handleResidencia(v: string) {
+        setResidenciaSelecionada(v);
+        setQuartoSelecionado("");
+        setDataInicio(null);
+        setDataFim(null);
+        onResidenciaChange?.(v);
+        onQuartoChange?.("");
+    }
+
+    function handleQuarto(v: string) {
+        setQuartoSelecionado(v);
+        setDataInicio(null);
+        setDataFim(null);
+        onQuartoChange?.(v);
+    }
+
+    const quartosDisponiveis = quartos
+        .filter((q) => q.residencia === residenciaSelecionada)
+        .map((q) => q.nome);
+
+    const quartoAtual = quartos.find(
+        (q) => q.residencia === residenciaSelecionada && q.nome === quartoSelecionado
+    );
+    const occupiedSet = new Set<number>(quartoAtual?.diasOcupados ?? []);
+
+    function hasOccupiedBetween(start: Date, end: Date): boolean {
+        const s = start < end ? start : end;
+        const e = start < end ? end : start;
+        const cur = new Date(s);
+        cur.setDate(cur.getDate() + 1);
+        while (cur < e) {
+            if (cur.getMonth() === mes && cur.getFullYear() === ano) {
+                if (occupiedSet.has(cur.getDate())) return true;
+            }
+            cur.setDate(cur.getDate() + 1);
+        }
+        return false;
+    }
+
+    function handleDayClick(day: number) {
+        if (!quartoSelecionado) return;
+        if (occupiedSet.has(day)) return;
+
+        const clicked = toDateObj(ano, mes, day);
+
+        if (dataFim || !dataInicio || clicked < dataInicio) {
+            setDataInicio(clicked);
+            setDataFim(null);
+            return;
+        }
+
+        if (clicked.getTime() === dataInicio.getTime()) {
+            setDataFim(clicked);
+            onRangeSelect?.(
+                formatarData(ano, mes, day),
+                formatarData(ano, mes, day)
+            );
+            return;
+        }
+
+        if (hasOccupiedBetween(dataInicio, clicked)) {
+            setDataInicio(clicked);
+            setDataFim(null);
+            return;
+        }
+
+        setDataFim(clicked);
+        onRangeSelect?.(
+            formatarData(dataInicio.getFullYear(), dataInicio.getMonth(), dataInicio.getDate()),
+            formatarData(ano, mes, day)
+        );
+    }
+
+    function getDayStyle(day: number): {
+        bg: string; text: string; roundLeft: boolean; roundRight: boolean; isRange: boolean;
+    } {
+        const date = toDateObj(ano, mes, day);
+        const hoverEnd = hover ?? dataFim;
+        const rangeEnd = dataFim ?? hoverEnd;
+
+        const isStart = dataInicio?.getTime() === date.getTime();
+        const isEnd = rangeEnd?.getTime() === date.getTime();
+        const isBetween = dataInicio && rangeEnd &&
+            date > (dataInicio < rangeEnd ? dataInicio : rangeEnd) &&
+            date < (dataInicio < rangeEnd ? rangeEnd : dataInicio);
+
+        if (occupiedSet.has(day)) return { bg: "", text: "", roundLeft: false, roundRight: false, isRange: false };
+        if (isStart || isEnd) return { bg: BRAND, text: "white", roundLeft: isStart, roundRight: isEnd, isRange: true };
+        if (isBetween) return { bg: "#E8F0F3", text: BRAND, roundLeft: false, roundRight: false, isRange: true };
+
+        return { bg: "", text: "", roundLeft: false, roundRight: false, isRange: false };
+    }
 
     const mesNome = new Date(ano, mes, 1).toLocaleString("pt-BR", { month: "long" });
     const cells = buildCalendar(ano, mes);
 
+    const diarias = dataInicio && dataFim
+        ? Math.max(1, Math.round(Math.abs(dataFim.getTime() - dataInicio.getTime()) / (1000 * 60 * 60 * 24)) + 1)
+        : null;
+
     return (
         <div className="flex flex-col gap-3">
-            {/* Dropdowns */}
             <div className="flex gap-2">
-                {["Residência", "Quarto"].map((val) => (
-                    <button
-                        key={val}
-                        className="flex items-center gap-2 border border-gray-200 rounded-lg px-4 py-2 text-sm text-gray-600 hover:border-teal-400 transition-colors cursor-pointer bg-white shadow-sm"
-                    >
-                        {val}
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <polyline points="6 9 12 15 18 9" />
-                        </svg>
-                    </button>
-                ))}
+                <SelectCalendario label="Residência" value={residenciaSelecionada} options={residencias} onChange={handleResidencia} />
+                <SelectCalendario label="Quarto" value={quartoSelecionado} options={quartosDisponiveis} onChange={handleQuarto} disabled={!residenciaSelecionada} />
             </div>
 
-            {/* Card calendário */}
             <div className="bg-white rounded-2xl shadow-sm p-6 flex flex-col gap-4 w-full">
 
-                {/* Navegação mês */}
                 <div className="flex items-center justify-between px-2">
-                    <button
-                        onClick={() => setMes((m) => m - 1)}
-                        className="p-1 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-                    >
+                    <button onClick={() => setMes((m) => m - 1)} className="p-1 rounded-lg hover:bg-gray-100 cursor-pointer">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <polyline points="15 18 9 12 15 6" />
                         </svg>
                     </button>
-
-                    <div className="text-sm font-semibold tracking-widest uppercase" style={{ color: "#1A4A5E" }}>
+                    <div className="text-sm font-semibold tracking-widest uppercase" style={{ color: BRAND }}>
                         {mesNome} {ano}
                     </div>
-
-                    <button
-                        onClick={() => setMes((m) => m + 1)}
-                        className="p-1 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-                    >
+                    <button onClick={() => setMes((m) => m + 1)} className="p-1 rounded-lg hover:bg-gray-100 cursor-pointer">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <polyline points="9 18 15 12 9 6" />
                         </svg>
                     </button>
                 </div>
 
-                {/* Cabeçalho dias */}
                 <div className="grid grid-cols-7 gap-1 text-[11px] text-gray-400 text-center font-semibold">
                     {dayLabels.map((d) => <div key={d}>{d}</div>)}
                 </div>
 
-                {/* Dias */}
-                <div className="grid grid-cols-7 gap-2">
+                <div className="grid grid-cols-7 gap-0">
                     {cells.map((day, idx) => {
-                        const status = dayStatus(day);
+                        if (!day) return <div key={idx} className="h-11" />;
+
+                        const isOccupied = occupiedSet.has(day);
+                        const isToday = isCurrentMonth && day === todayDay;
+                        const canClick = !!quartoSelecionado && !isOccupied;
+                        const style = quartoSelecionado ? getDayStyle(day) : { bg: "", text: "", roundLeft: false, roundRight: false, isRange: false };
+
+                        const isSelected = style.bg === BRAND;
+                        const isInRange = style.isRange && !isSelected;
+
                         return (
                             <div
                                 key={idx}
-                                className={`h-11 w-full flex items-center justify-center rounded-lg text-sm cursor-pointer transition-all
-                  ${status === "empty" ? "" : statusClass[status]}
-                  ${status !== "empty" && status !== "today" ? "hover:opacity-75" : ""}`}
-                                style={status === "today" ? { backgroundColor: "#1A4A5E" } : {}}
+                                className="h-11 flex items-center justify-center relative"
+                                style={{
+                                    backgroundColor: isInRange ? "#E8F0F3" : "transparent",
+                                    borderRadius: style.roundLeft ? "8px 0 0 8px" : style.roundRight ? "0 8px 8px 0" : "0",
+                                }}
+                                onMouseEnter={() => {
+                                    if (quartoSelecionado && dataInicio && !dataFim && !isOccupied)
+                                        setHover(toDateObj(ano, mes, day));
+                                }}
+                                onMouseLeave={() => setHover(null)}
                             >
-                                {day}
+                                <div
+                                    onClick={() => canClick && handleDayClick(day)}
+                                    className={`
+                                        w-10 h-10 flex items-center justify-center rounded-lg text-sm font-medium transition-all select-none
+                                        ${canClick ? "cursor-pointer" : ""}
+                                        ${isOccupied ? "bg-red-100 text-red-400 cursor-not-allowed w-full h-full" : "w-full h-full"}
+                                        ${isSelected ? "text-white font-bold" : ""}
+                                        ${!isOccupied && !isSelected && canClick ? "hover:bg-gray-100" : ""}
+                                        ${!quartoSelecionado && !isOccupied ? "opacity-50" : ""}
+                                    `}
+                                    style={{
+                                        backgroundColor: isSelected
+                                            ? BRAND
+                                            : undefined,
+                                        color: isSelected
+                                            ? "white"
+                                            : isInRange
+                                                ? BRAND
+                                                : isToday
+                                                    ? BRAND
+                                                    : undefined,
+                                        outline: undefined,
+                                        outlineOffset: undefined,
+                                        fontWeight: isToday && !isSelected ? 800 : isSelected ? 700 : undefined,
+                                        fontSize: isToday && !isSelected ? "1.1rem" : undefined,
+                                    }}
+                                    title={
+                                        !quartoSelecionado ? "Selecione um quarto primeiro" :
+                                            isOccupied ? "Data ocupada" :
+                                                !dataInicio ? "Clique para selecionar a entrada" :
+                                                    !dataFim ? "Clique para selecionar a saída" : ""
+                                    }
+                                >
+                                    {day}
+                                </div>
                             </div>
                         );
                     })}
                 </div>
 
-                {/* Legenda */}
                 <div className="flex items-center gap-4 text-xs text-gray-500 pt-1">
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-sm bg-green-100 inline-block" /> Disponível
-          </span>
                     <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-sm bg-red-100 inline-block" /> Ocupado
-          </span>
+                        <span className="w-3 h-3 rounded-sm inline-block" style={{ backgroundColor: BRAND }} /> Selecionado
+                    </span>
                     <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-sm inline-block" style={{ backgroundColor: "#1A4A5E" }} /> Hoje
-          </span>
+                        <span className="w-3 h-3 rounded-sm inline-block" style={{ backgroundColor: "#E8F0F3" }} /> Período
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                        <span className="w-3 h-3 rounded-sm bg-red-100 inline-block" /> Ocupado
+                    </span>
+                </div>
+
+                <div className="text-xs text-center -mt-1" style={{ color: BRAND }}>
+                    {!residenciaSelecionada || !quartoSelecionado ? (
+                        <span className="text-gray-400">
+                            {!residenciaSelecionada
+                                ? "Selecione uma residência e um quarto para ver a disponibilidade"
+                                : "Selecione um quarto para ver a disponibilidade"}
+                        </span>
+                    ) : !dataInicio ? (
+                        "Clique em um dia para selecionar a entrada"
+                    ) : !dataFim ? (
+                        <>Entrada: <strong>{formatarLabel(dataInicio.getFullYear(), dataInicio.getMonth(), dataInicio.getDate())}</strong> · Agora selecione a saída</>
+                    ) : (
+                        <>
+                            <strong>{formatarLabel(dataInicio.getFullYear(), dataInicio.getMonth(), dataInicio.getDate())}</strong>
+                            {" → "}
+                            <strong>{formatarLabel(dataFim.getFullYear(), dataFim.getMonth(), dataFim.getDate())}</strong>
+                            {" · "}
+                            {diarias} diária{diarias !== 1 ? "s" : ""}
+                            <button
+                                onClick={() => { setDataInicio(null); setDataFim(null); }}
+                                className="ml-3 underline cursor-pointer"
+                                style={{ color: "#6b7280" }}
+                            >
+                                Limpar
+                            </button>
+                        </>
+                    )}
                 </div>
             </div>
         </div>
