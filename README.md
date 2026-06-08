@@ -1,4 +1,4 @@
-# 🐢 Maraú Hospedagens
+# <img src="Documentos/logohostel2.png" alt="Maraú Hospedagens" width="400">
 
 Sistema completo de gestão de alojamentos, reservas e alugueres por temporada, desenvolvido para otimizar a administração de residências e quartos, oferecendo uma experiência fluida tanto para os administradores quanto para os clientes.
 
