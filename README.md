@@ -1,4 +1,4 @@
-# <img src="Documentos/imagens/ChatGPT Image 8 de jun. de 2026, 14_57_21.png" alt="Maraú Hospedagens" width="700">
+# <img src="Documentos/imagens/ChatGPT Image 8 de jun. de 2026, 15_14_32.png" alt="Maraú Hospedagens" width="700">
 
 Sistema completo de gestão de alojamentos, reservas e alugueres por temporada, desenvolvido para otimizar a administração de residências e quartos, oferecendo uma experiência fluida tanto para os administradores quanto para os clientes.
 
