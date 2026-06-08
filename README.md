@@ -1,4 +1,4 @@
-# <img src="Documentos/imagens/logohostel2.png" alt="Maraú Hospedagens" width="400">
+# <img src="Documentos/imagens/Gemini_Generated_Image_enjgeienjgeienjg.png" alt="Maraú Hospedagens" width="800">
 
 Sistema completo de gestão de alojamentos, reservas e alugueres por temporada, desenvolvido para otimizar a administração de residências e quartos, oferecendo uma experiência fluida tanto para os administradores quanto para os clientes.
 
