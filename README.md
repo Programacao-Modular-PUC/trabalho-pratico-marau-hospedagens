@@ -38,9 +38,6 @@ O ecossistema do projeto foi estruturado seguindo o modelo de desacoplamento ent
 
 * **Backend:** Java (Spring Boot) — Responsável pela API RESTful, regras de negócio estruturadas, segurança e emissão de recibos.
 * **Frontend:** React (TypeScript) — Interface SPA moderna, interativa e responsiva utilizando Tailwind CSS.
-* **Base de Dados:** PostgreSQL — Para persistência robusta e relacional dos dados.
-* **Contentores:** Docker — Isolamento e padronização dos ambientes de desenvolvimento e produção.
-
 ---
 
 ## 🗄️ Modelagem de Dados (Entidades Principais)
