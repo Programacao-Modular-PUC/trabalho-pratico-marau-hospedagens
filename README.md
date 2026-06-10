@@ -1,7 +1,7 @@
 
 
 <div align="center">
- <img src="Documentos/imagens/ChatGPT Image 8 de jun. de 2026, 15_14_32.png" alt="Maraú Hospedagens" width="700">
+ <img src="Documentos/imagens/ChatGPT Image 8 de jun. de 2026, 15_14_32.png" alt="Maraú Hospedagens" width="500">
 </div>
 
 <div align="center">
