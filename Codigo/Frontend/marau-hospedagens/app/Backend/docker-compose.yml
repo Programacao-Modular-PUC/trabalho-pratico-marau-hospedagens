@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: marau-db
+    environment:
+      POSTGRES_DB: marau
+      POSTGRES_USER: marau
+      POSTGRES_PASSWORD: marau
+    ports:
+      - "5432:5432"
+    volumes:
+      - marau-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U marau -d marau"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    container_name: marau-app
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/marau
+      SPRING_DATASOURCE_USERNAME: marau
+      SPRING_DATASOURCE_PASSWORD: marau
+      APP_SEED_DATA: "true"
+      APP_CORS_ALLOWED_ORIGINS: "http://localhost:3000"
+    ports:
+      - "8080:8080"
+
+volumes:
+  marau-db-data:

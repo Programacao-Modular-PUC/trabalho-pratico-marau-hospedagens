@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: marau-hospedagens
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/marau}
+    username: ${SPRING_DATASOURCE_USERNAME:marau}
+    password: ${SPRING_DATASOURCE_PASSWORD:marau}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+  jackson:
+    default-property-inclusion: non_null
+
+server:
+  port: 8080
+
+app:
+  seed-data: ${APP_SEED_DATA:true}
+  cors:
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000}
