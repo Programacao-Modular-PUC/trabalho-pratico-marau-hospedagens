@@ -5,9 +5,29 @@ import { useEffect, useRef, useState } from "react";
 export type HistoryEntry = {
     id: number;
     date: string;
-    time: string;
-    text: string;
+    cliente: string;
+    local: string;
+    status: "reserva" | "ocupado" | "concluido";
 };
+
+const BRAND = "#1A4A5E";
+
+function StatusBadge({ status }: { status: HistoryEntry["status"] }) {
+    const map = {
+        reserva:   { label: "RESERVA",   bg: "#dbeafe", color: "#2563eb" },
+        ocupado:   { label: "OCUPADO",   bg: "#dcfce7", color: "#16a34a" },
+        concluido: { label: "CONCLUÍDO", bg: "#f3f4f6", color: "#6b7280" },
+    };
+    const s = map[status];
+    return (
+        <span
+            className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide whitespace-nowrap"
+            style={{ backgroundColor: s.bg, color: s.color }}
+        >
+            {s.label}
+        </span>
+    );
+}
 
 export default function HistoryTimeline({ entries }: { entries: HistoryEntry[] }) {
     const [visibleIds, setVisibleIds] = useState<Set<number>>(new Set());
@@ -22,14 +42,12 @@ export default function HistoryTimeline({ entries }: { entries: HistoryEntry[] }
         });
 
         if (newIds.size > 0) {
-            // Itens novos começam invisíveis
             setVisibleIds((prev) => {
                 const next = new Set(prev);
                 newIds.forEach((id) => next.delete(id));
                 return next;
             });
 
-            // Após 50ms animam para visível
             setTimeout(() => {
                 setVisibleIds((prev) => {
                     const next = new Set(prev);
@@ -45,37 +63,30 @@ export default function HistoryTimeline({ entries }: { entries: HistoryEntry[] }
     }, [entries]);
 
     return (
-        <div className="relative pl-6">
-            <div
-                className="absolute left-[7px] top-2 w-0.5 bg-[#E5D3BA]"
-                style={{ height: `calc(100% - 2rem)` }}
-            />
-            <div className="flex flex-col gap-5">
-                {entries.map((entry) => {
-                    const isVisible = visibleIds.has(entry.id);
-                    return (
-                        <div
-                            key={entry.id}
-                            className="relative transition-all duration-500 ease-out"
-                            style={{
-                                opacity: isVisible ? 1 : 0,
-                                transform: isVisible ? "translateY(0)" : "translateY(-12px)",
-                            }}
-                        >
-                            <div className="absolute -left-6 top-1 w-4 h-4 rounded-full border-2 bg-white flex items-center justify-center"
-                                 style={{ borderColor: "#3C8FAD" }}>
-                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: "#3C8FAD" }} />
-                            </div>
-                            <div className="text-xs text-gray-400 mb-0.5">
-                                {entry.date} · {entry.time}
-                            </div>
-                            <div className="text-sm font-medium" style={{ color: "#1A4A5E" }}>
-                                {entry.text}
-                            </div>
+        <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+            {entries.map((entry, i) => {
+                const isVisible = visibleIds.has(entry.id);
+                return (
+                    <div
+                        key={entry.id}
+                        className={`flex items-center justify-between gap-4 px-6 py-4 border-b border-gray-100 transition-all duration-500 ease-out hover:bg-gray-50
+                            ${i === entries.length - 1 ? "border-b-0" : ""}`}
+                        style={{
+                            opacity: isVisible ? 1 : 0,
+                            transform: isVisible ? "translateY(0)" : "translateY(-8px)",
+                        }}
+                    >
+                        <div className="min-w-0">
+                            <p className="text-sm font-semibold truncate" style={{ color: BRAND }}>{entry.cliente}</p>
+                            <p className="text-xs text-gray-400 truncate">{entry.local}</p>
                         </div>
-                    );
-                })}
-            </div>
+                        <div className="flex items-center gap-3 shrink-0">
+                            <StatusBadge status={entry.status} />
+                            <span className="text-xs text-gray-400 w-14 text-right">{entry.date}</span>
+                        </div>
+                    </div>
+                );
+            })}
         </div>
     );
 }
