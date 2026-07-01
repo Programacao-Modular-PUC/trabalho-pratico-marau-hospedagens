@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { Aluguel } from "@/lib/api";
 
 type Props = {
@@ -37,6 +38,8 @@ function StatusBadge({ status }: { status: Aluguel["status"] }) {
 }
 
 export default function DetalhesReservaModal({ aluguel: a, onClose, onCancelar }: Props) {
+    const [confirmando, setConfirmando] = useState(false);
+
     return (
         <div
             className="fixed inset-0 z-50 flex items-center justify-center"
@@ -90,7 +93,11 @@ export default function DetalhesReservaModal({ aluguel: a, onClose, onCancelar }
                             <line x1="12" y1="8" x2="12" y2="12" />
                             <line x1="12" y1="16" x2="12.01" y2="16" />
                         </svg>
-                        <span>Ao cancelar, a reserva será removida e o quarto voltará a ficar disponível.</span>
+                        <span>
+                            {confirmando
+                                ? "Tem certeza? Essa ação não pode ser desfeita."
+                                : "Ao cancelar, a reserva será removida e o quarto voltará a ficar disponível."}
+                        </span>
                     </div>
                 )}
 
@@ -100,31 +107,56 @@ export default function DetalhesReservaModal({ aluguel: a, onClose, onCancelar }
                     style={{ justifyContent: a.status === "reserva" ? "space-between" : "flex-end" }}
                 >
                     {a.status === "reserva" && (
+                        confirmando ? (
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setConfirmando(false)}
+                                    className="px-5 py-2.5 rounded-xl text-sm font-semibold border-2 cursor-pointer transition-all"
+                                    style={{ borderColor: "#e5e7eb", color: "#6b7280" }}
+                                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#e5e7eb"; e.currentTarget.style.color = "white"; }}
+                                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = "#6b7280"; }}
+                                >
+                                    Voltar
+                                </button>
+                                <button
+                                    onClick={() => onCancelar(a.id)}
+                                    className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white cursor-pointer transition-all"
+                                    style={{ backgroundColor: "#EF4444" }}
+                                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#dc2626"; }}
+                                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "#EF4444"; }}
+                                >
+                                    Sim, cancelar
+                                </button>
+                            </div>
+                        ) : (
+                            <button
+                                onClick={() => setConfirmando(true)}
+                                className="px-5 py-2.5 rounded-xl text-sm font-semibold border-2 cursor-pointer transition-all"
+                                style={{ borderColor: "#EF4444", color: "#EF4444" }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = "#EF4444";
+                                    e.currentTarget.style.color = "white";
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = "transparent";
+                                    e.currentTarget.style.color = "#EF4444";
+                                }}
+                            >
+                                Cancelar Reserva
+                            </button>
+                        )
+                    )}
+                    {!confirmando && (
                         <button
-                            onClick={() => onCancelar(a.id)}
-                            className="px-5 py-2.5 rounded-xl text-sm font-semibold border-2 cursor-pointer transition-all"
-                            style={{ borderColor: "#EF4444", color: "#EF4444" }}
-                            onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = "#EF4444";
-                                e.currentTarget.style.color = "white";
-                            }}
-                            onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = "transparent";
-                                e.currentTarget.style.color = "#EF4444";
-                            }}
+                            onClick={onClose}
+                            className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white cursor-pointer transition-colors"
+                            style={{ backgroundColor: BRAND }}
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#15394d"; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = BRAND; }}
                         >
-                            Cancelar Reserva
+                            Fechar
                         </button>
                     )}
-                    <button
-                        onClick={onClose}
-                        className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white cursor-pointer transition-colors"
-                        style={{ backgroundColor: BRAND }}
-                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#15394d"; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = BRAND; }}
-                    >
-                        Fechar
-                    </button>
                 </div>
             </div>
         </div>

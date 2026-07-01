@@ -1,23 +1,46 @@
 "use client";
 
 import { useState } from "react";
-import { api, ApiError } from "@/lib/api";
+import { api, ApiError, type Cliente } from "@/lib/api";
 
 type Props = {
     onClose: () => void;
     onConfirm: () => void;
+    clienteEditando?: Cliente;
 };
 
 const BRAND = "#1A4A5E";
 
-export default function NovoClienteModal({ onClose, onConfirm }: Props) {
-    const [nome, setNome] = useState("");
-    const [cpf, setCpf] = useState("");
-    const [email, setEmail] = useState("");
-    const [telefone, setTelefone] = useState("");
-    const [endereco, setEndereco] = useState("");
-    const [cidade, setCidade] = useState("");
-    const [estado, setEstado] = useState("");
+// Desmonta "Rua X, 123, Cidade - UF" de volta em endereço/cidade/estado
+// (formato que este mesmo modal gera ao cadastrar). Endereços que vieram de
+// outro lugar (ex: seed do banco) podem não encaixar perfeitamente — nesse
+// caso o usuário só ajusta os campos manualmente.
+function parseEnderecoCliente(completo: string) {
+    let estado = "";
+    let resto = completo;
+    const idxEstado = completo.lastIndexOf(" - ");
+    if (idxEstado !== -1) {
+        estado = completo.slice(idxEstado + 3);
+        resto = completo.slice(0, idxEstado);
+    }
+    const idxCidade = resto.lastIndexOf(", ");
+    if (idxCidade !== -1) {
+        return { endereco: resto.slice(0, idxCidade), cidade: resto.slice(idxCidade + 2), estado };
+    }
+    return { endereco: resto, cidade: "", estado };
+}
+
+export default function NovoClienteModal({ onClose, onConfirm, clienteEditando }: Props) {
+    const modoEdicao = !!clienteEditando;
+    const enderecoInicial = clienteEditando ? parseEnderecoCliente(clienteEditando.endereco) : { endereco: "", cidade: "", estado: "" };
+
+    const [nome, setNome] = useState(clienteEditando?.nome ?? "");
+    const [cpf, setCpf] = useState(clienteEditando?.cpf ?? "");
+    const [email, setEmail] = useState(clienteEditando?.email ?? "");
+    const [telefone, setTelefone] = useState(clienteEditando?.telefone ?? "");
+    const [endereco, setEndereco] = useState(enderecoInicial.endereco);
+    const [cidade, setCidade] = useState(enderecoInicial.cidade);
+    const [estado, setEstado] = useState(enderecoInicial.estado);
 
     const formatarCpf = (v: string) => {
         const nums = v.replace(/\D/g, "").slice(0, 11);
@@ -45,21 +68,26 @@ export default function NovoClienteModal({ onClose, onConfirm }: Props) {
         cidade.trim() !== "" &&
         estado.trim() !== "";
 
-    async function handleCadastrar() {
+    async function handleSalvar() {
         setErro(null);
         setEnviando(true);
         try {
-            await api.clientes.criar({
+            const req = {
                 nome,
                 cpf,
                 email,
                 telefone,
                 // Backend guarda um único campo de endereço; juntamos endereço + cidade/UF.
                 endereco: `${endereco}${cidade ? `, ${cidade}` : ""}${estado ? ` - ${estado}` : ""}`,
-            });
+            };
+            if (modoEdicao && clienteEditando) {
+                await api.clientes.atualizar(clienteEditando.id, req);
+            } else {
+                await api.clientes.criar(req);
+            }
             onConfirm();
         } catch (e) {
-            setErro(e instanceof ApiError ? e.message : "Erro ao cadastrar cliente.");
+            setErro(e instanceof ApiError ? e.message : `Erro ao ${modoEdicao ? "salvar" : "cadastrar"} cliente.`);
         } finally {
             setEnviando(false);
         }
@@ -75,7 +103,9 @@ export default function NovoClienteModal({ onClose, onConfirm }: Props) {
 
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
-                    <h2 className="text-lg font-bold" style={{ color: BRAND }}>Novo Cliente</h2>
+                    <h2 className="text-lg font-bold" style={{ color: BRAND }}>
+                        {modoEdicao ? "Editar Cliente" : "Novo Cliente"}
+                    </h2>
                     <button onClick={onClose} className="text-gray-400 hover:text-gray-600 cursor-pointer transition-colors">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <line x1="18" y1="6" x2="6" y2="18" />
@@ -198,14 +228,14 @@ export default function NovoClienteModal({ onClose, onConfirm }: Props) {
                         Cancelar
                     </button>
                     <button
-                        onClick={handleCadastrar}
+                        onClick={handleSalvar}
                         disabled={!valido || enviando}
                         className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                         style={{ backgroundColor: BRAND }}
                         onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.backgroundColor = "#15394d"; }}
                         onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = BRAND; }}
                     >
-                        {enviando ? "Cadastrando..." : "Cadastrar Cliente"}
+                        {enviando ? "Salvando..." : modoEdicao ? "Salvar Alterações" : "Cadastrar Cliente"}
                     </button>
                 </div>
             </div>

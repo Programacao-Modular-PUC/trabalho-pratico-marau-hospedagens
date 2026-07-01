@@ -168,7 +168,7 @@ function QuartosContent() {
                                 </div>
                                 <div className="grid grid-cols-3 gap-6">
                                     {quartosFiltrados(residencia).map((q) => (
-                                        <QuartoCard key={q.id} q={q} />
+                                        <QuartoCard key={q.id} q={q} onChanged={carregar}/>
                                     ))}
                                 </div>
                             </div>

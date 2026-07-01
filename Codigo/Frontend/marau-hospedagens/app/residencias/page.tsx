@@ -92,7 +92,7 @@ export default function ResidenciasPage() {
             ) : (
                 <div className="grid grid-cols-2 gap-6">
                     {residencias.map((r) => (
-                        <ResidenciaCard key={r.id} r={r} />
+                        <ResidenciaCard key={r.id} r={r} onChanged={carregar}/>
                     ))}
                 </div>
             )}

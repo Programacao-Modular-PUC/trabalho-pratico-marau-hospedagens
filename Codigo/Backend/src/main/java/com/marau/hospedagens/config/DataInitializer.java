@@ -22,11 +22,18 @@ import java.time.LocalDateTime;
 import java.util.Set;
 
 /**
- * Popula o banco com os dados de exemplo do frontend (duas residências,
- * comodidades, quartos, clientes e aluguéis) na primeira inicialização.
+ * Popula o banco com dados de exemplo (três residências, comodidades,
+ * quartos, clientes e aluguéis) na primeira inicialização.
  *
- * Só roda quando {@code app.seed-data=true} (ligado no docker-compose) e
- * apenas se o banco ainda estiver vazio, para não duplicar registros.
+ * As datas dos aluguéis são geradas em relação ao momento em que o backend
+ * sobe (LocalDateTime.now()), não em datas fixas de calendário. Isso evita
+ * que a demonstração fique com dados "no passado" dependendo de quando o
+ * sistema é executado (ex: um aluguel OCUPADO com data de abril, mesmo
+ * rodando em julho).
+ *
+ * Só roda quando {@code app.seed-data=true} (ligado no docker-compose e no
+ * profile dev) e apenas se o banco ainda estiver vazio, para não duplicar
+ * registros.
  */
 @Component
 public class DataInitializer implements CommandLineRunner {
@@ -35,6 +42,7 @@ public class DataInitializer implements CommandLineRunner {
 
     private static final String BRAND = "#1A4A5E";
     private static final String TERRACOTA = "#C0624A";
+    private static final String VERDE = "#47977B";
 
     private final boolean seedEnabled;
     private final ResidenciaRepository residenciaRepository;
@@ -62,6 +70,9 @@ public class DataInitializer implements CommandLineRunner {
         }
 
         log.info("Populando banco com dados de exemplo...");
+
+        // As diárias sempre começam às 12h (regra de negócio do sistema).
+        LocalDateTime hoje = LocalDateTime.now().withHour(12).withMinute(0).withSecond(0).withNano(0);
 
         // Etapa 1: Comodidades - catalogo usado no calculo do preco dos quartos
         Comodidade ar = comodidadeRepository.save(Comodidade.builder()
@@ -96,7 +107,7 @@ public class DataInitializer implements CommandLineRunner {
                 .nome("Qto 02")
                 .tipo(TipoQuarto.DUPLO)
                 .valorBase(new BigDecimal("160.00"))
-                .status(StatusQuarto.OCUPADO) // Ana Lima está hospedada
+                .status(StatusQuarto.OCUPADO) // Ana Lima está hospedada agora
                 .cor(BRAND)
                 .residencia(casaPraiana)
                 .comodidades(Set.of(ar, hidro))
@@ -140,18 +151,55 @@ public class DataInitializer implements CommandLineRunner {
         pmQto01 = pousadaMato.getQuartos().get(0);
         pmQto02 = pousadaMato.getQuartos().get(1);
 
-        // Etapa 4: Clientes + alugueis - cascata Cliente para Aluguel
+        // Etapa 4: Vila das Dunas + quartos (terceira residência, dá mais massa
+        // de dados para testar paginação e o gráfico de receita por mês)
+        Residencia vilaDasDunas = Residencia.builder()
+                .nome("Vila das Dunas")
+                .endereco("Travessa das Vitórias-Régias, 15 · Ponta do Mutá")
+                .cep("45520-200")
+                .telefone("(73) 99112-3344")
+                .email("viladasdunas@email.com")
+                .cor(VERDE)
+                .build();
+
+        Quarto vdQto01 = Quarto.builder()
+                .nome("Qto 01")
+                .tipo(TipoQuarto.DUPLO)
+                .valorBase(new BigDecimal("140.00"))
+                .status(StatusQuarto.DISPONIVEL)
+                .cor(VERDE)
+                .residencia(vilaDasDunas)
+                .comodidades(Set.of(hidro))
+                .build();
+        Quarto vdQto02 = Quarto.builder()
+                .nome("Qto 02")
+                .tipo(TipoQuarto.FAMILIA)
+                .valorBase(new BigDecimal("220.00"))
+                .status(StatusQuarto.DISPONIVEL)
+                .cor(VERDE)
+                .residencia(vilaDasDunas)
+                .build();
+        vilaDasDunas.getQuartos().add(vdQto01);
+        vilaDasDunas.getQuartos().add(vdQto02);
+        vilaDasDunas = residenciaRepository.save(vilaDasDunas);
+        vdQto01 = vilaDasDunas.getQuartos().get(0);
+        vdQto02 = vilaDasDunas.getQuartos().get(1);
+
+        // Etapa 5: Clientes + aluguéis - cascata Cliente para Aluguel.
+        // Datas espalhadas nos últimos ~3 meses e nas próximas semanas, sempre
+        // relativas a "hoje", para a demonstração nunca ficar desatualizada.
+
         Cliente ana = Cliente.builder()
                 .nome("Ana Lima")
                 .cpf("032.456.789-01")
                 .email("ana.lima@email.com")
                 .telefone("(11) 98765-4321")
-                .endereco("São Paulo, SP")
+                .endereco("Rua das Acácias, 45, São Paulo - SP")
                 .build();
-        vincular(ana, Aluguel.builder()
+        vincular(ana, Aluguel.builder() // hospedada agora
                 .quarto(cpQto02)
-                .entrada(LocalDateTime.of(2025, 4, 17, 12, 0))
-                .saida(LocalDateTime.of(2025, 4, 21, 12, 0))
+                .entrada(hoje.minusDays(2))
+                .saida(hoje.plusDays(2))
                 .diarias(4)
                 .precoDiaria(new BigDecimal("200.00"))
                 .valorFinal(new BigDecimal("800.00"))
@@ -164,12 +212,12 @@ public class DataInitializer implements CommandLineRunner {
                 .cpf("045.678.912-23")
                 .email("joao.santos@email.com")
                 .telefone("(21) 97654-3210")
-                .endereco("Rio de Janeiro, RJ")
+                .endereco("Avenida Atlântica, 210, Rio de Janeiro - RJ")
                 .build();
-        vincular(joao, Aluguel.builder()
+        vincular(joao, Aluguel.builder() // concluído há ~2 meses
                 .quarto(cpQto01)
-                .entrada(LocalDateTime.of(2025, 4, 12, 12, 0))
-                .saida(LocalDateTime.of(2025, 4, 16, 12, 0))
+                .entrada(hoje.minusDays(65))
+                .saida(hoje.minusDays(61))
                 .diarias(4)
                 .precoDiaria(new BigDecimal("120.00"))
                 .valorFinal(new BigDecimal("480.00"))
@@ -182,12 +230,12 @@ public class DataInitializer implements CommandLineRunner {
                 .cpf("078.901.234-56")
                 .email("carlos.m@email.com")
                 .telefone("(31) 96543-2109")
-                .endereco("Belo Horizonte, MG")
+                .endereco("Rua da Bahia, 780, Belo Horizonte - MG")
                 .build();
-        vincular(carlos, Aluguel.builder()
+        vincular(carlos, Aluguel.builder() // concluído há ~1 mês
                 .quarto(pmQto02)
-                .entrada(LocalDateTime.of(2025, 4, 10, 12, 0))
-                .saida(LocalDateTime.of(2025, 4, 14, 12, 0))
+                .entrada(hoje.minusDays(35))
+                .saida(hoje.minusDays(31))
                 .diarias(4)
                 .precoDiaria(new BigDecimal("90.00"))
                 .valorFinal(new BigDecimal("360.00"))
@@ -200,18 +248,154 @@ public class DataInitializer implements CommandLineRunner {
                 .cpf("089.123.456-78")
                 .email("marina.faria@email.com")
                 .telefone("(41) 95432-1098")
-                .endereco("Curitiba, PR")
+                .endereco("Rua XV de Novembro, 320, Curitiba - PR")
                 .build();
-        vincular(marina, Aluguel.builder()
+        vincular(marina, Aluguel.builder() // reserva futura
                 .quarto(pmQto01)
-                .entrada(LocalDateTime.of(2025, 4, 20, 12, 0))
-                .saida(LocalDateTime.of(2025, 4, 25, 12, 0))
+                .entrada(hoje.plusDays(20))
+                .saida(hoje.plusDays(25))
                 .diarias(5)
                 .precoDiaria(new BigDecimal("95.00"))
                 .valorFinal(new BigDecimal("475.00"))
                 .status(StatusAluguel.RESERVA)
                 .build());
         clienteRepository.save(marina);
+
+        Cliente beatriz = Cliente.builder()
+                .nome("Beatriz Rocha")
+                .cpf("091.234.567-89")
+                .email("beatriz.rocha@email.com")
+                .telefone("(51) 94321-0987")
+                .endereco("Avenida Ipiranga, 1500, Porto Alegre - RS")
+                .build();
+        vincular(beatriz, Aluguel.builder() // concluído há ~3 meses
+                .quarto(vdQto01)
+                .entrada(hoje.minusDays(95))
+                .saida(hoje.minusDays(90))
+                .diarias(5)
+                .precoDiaria(new BigDecimal("170.00"))
+                .valorFinal(new BigDecimal("850.00"))
+                .status(StatusAluguel.CONCLUIDO)
+                .build());
+        clienteRepository.save(beatriz);
+
+        Cliente rafael = Cliente.builder()
+                .nome("Rafael Souza")
+                .cpf("102.345.678-90")
+                .email("rafael.souza@email.com")
+                .telefone("(61) 93210-9876")
+                .endereco("Quadra 108, 12, Brasília - DF")
+                .build();
+        vincular(rafael, Aluguel.builder() // concluído recentemente (mesmo mês)
+                .quarto(vdQto02)
+                .entrada(hoje.minusDays(10))
+                .saida(hoje.minusDays(7))
+                .diarias(3)
+                .precoDiaria(new BigDecimal("220.00"))
+                .valorFinal(new BigDecimal("660.00"))
+                .status(StatusAluguel.CONCLUIDO)
+                .build());
+        clienteRepository.save(rafael);
+
+        Cliente fernanda = Cliente.builder()
+                .nome("Fernanda Alves")
+                .cpf("113.456.789-01")
+                .email("fernanda.alves@email.com")
+                .telefone("(71) 92109-8765")
+                .endereco("Rua Chile, 88, Salvador - BA")
+                .build();
+        vincular(fernanda, Aluguel.builder() // reserva próxima
+                .quarto(pmQto02)
+                .entrada(hoje.plusDays(3))
+                .saida(hoje.plusDays(6))
+                .diarias(3)
+                .precoDiaria(new BigDecimal("90.00"))
+                .valorFinal(new BigDecimal("270.00"))
+                .status(StatusAluguel.RESERVA)
+                .build());
+        clienteRepository.save(fernanda);
+
+        // Cliente sem hospedagem ainda — útil para testar o estado "sem histórico"
+        Cliente bruno = Cliente.builder()
+                .nome("Bruno Castro")
+                .cpf("124.567.890-12")
+                .email("bruno.castro@email.com")
+                .telefone("(81) 91098-7654")
+                .endereco("Rua da Aurora, 230, Recife - PE")
+                .build();
+        clienteRepository.save(bruno);
+
+        Cliente gabriel = Cliente.builder()
+                .nome("Gabriel Nunes")
+                .cpf("135.678.901-23")
+                .email("gabriel.nunes@email.com")
+                .telefone("(85) 90987-6543")
+                .endereco("Avenida Beira Mar, 500, Fortaleza - CE")
+                .build();
+        vincular(gabriel, Aluguel.builder() // reserva futura
+                .quarto(cpQto01)
+                .entrada(hoje.plusDays(8))
+                .saida(hoje.plusDays(11))
+                .diarias(3)
+                .precoDiaria(new BigDecimal("120.00"))
+                .valorFinal(new BigDecimal("360.00"))
+                .status(StatusAluguel.RESERVA)
+                .build());
+        clienteRepository.save(gabriel);
+
+        Cliente larissa = Cliente.builder()
+                .nome("Larissa Dias")
+                .cpf("146.789.012-34")
+                .email("larissa.dias@email.com")
+                .telefone("(19) 98765-1234")
+                .endereco("Rua Barão de Jaguara, 150, Campinas - SP")
+                .build();
+        vincular(larissa, Aluguel.builder() // reserva futura
+                .quarto(vdQto02)
+                .entrada(hoje.plusDays(15))
+                .saida(hoje.plusDays(19))
+                .diarias(4)
+                .precoDiaria(new BigDecimal("220.00"))
+                .valorFinal(new BigDecimal("880.00"))
+                .status(StatusAluguel.RESERVA)
+                .build());
+        clienteRepository.save(larissa);
+
+        Cliente thiago = Cliente.builder()
+                .nome("Thiago Barbosa")
+                .cpf("157.890.123-45")
+                .email("thiago.barbosa@email.com")
+                .telefone("(27) 97654-2345")
+                .endereco("Avenida Jerônimo Monteiro, 90, Vitória - ES")
+                .build();
+        vincular(thiago, Aluguel.builder() // reserva futura
+                .quarto(vdQto01)
+                .entrada(hoje.plusDays(30))
+                .saida(hoje.plusDays(33))
+                .diarias(3)
+                .precoDiaria(new BigDecimal("170.00"))
+                .valorFinal(new BigDecimal("510.00"))
+                .status(StatusAluguel.RESERVA)
+                .build());
+        clienteRepository.save(thiago);
+
+        Cliente camila = Cliente.builder()
+                .nome("Camila Freitas")
+                .cpf("168.901.234-56")
+                .email("camila.freitas@email.com")
+                .telefone("(48) 96543-3456")
+                .endereco("Avenida Beira Mar Norte, 620, Florianópolis - SC")
+                .build();
+        vincular(camila, Aluguel.builder() // reserva futura (mais distante)
+                .quarto(cpQto01)
+                .entrada(hoje.plusDays(45))
+                .saida(hoje.plusDays(50))
+                .diarias(5)
+                .precoDiaria(new BigDecimal("120.00"))
+                .valorFinal(new BigDecimal("600.00"))
+                .status(StatusAluguel.RESERVA)
+                .build());
+        clienteRepository.save(camila);
 
         log.info("Seed concluído: {} residências, {} clientes.",
                 residenciaRepository.count(), clienteRepository.count());
