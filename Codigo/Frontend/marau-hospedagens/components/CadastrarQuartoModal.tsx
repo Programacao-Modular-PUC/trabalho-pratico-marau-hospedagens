@@ -1,14 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { api, ApiError, type Residencia, type Comodidade } from "@/lib/api";
 
 type Props = {
+    residencias: Residencia[];
     onClose: () => void;
     onConfirm: () => void;
 };
 
 const BRAND = "#1A4A5E";
-const residencias = ["Casa Praiana", "Pousada do Mato"];
 
 type TipoQuarto = "Individual" | "Duplo" | "Familia" | "";
 
@@ -111,15 +112,22 @@ function BotaoOpcao({ label, ativo, onClick, descricao }: {
     );
 }
 
-export default function CadastrarQuartoModal({ onClose, onConfirm }: Props) {
+export default function CadastrarQuartoModal({ residencias, onClose, onConfirm }: Props) {
     const [step, setStep] = useState(1);
 
+    const [comodidadesCatalogo, setComodidadesCatalogo] = useState<Comodidade[]>([]);
+    useEffect(() => {
+        api.comodidades.listar().then(setComodidadesCatalogo).catch(() => {});
+    }, []);
+    const comodidadeAr = comodidadesCatalogo.find((c) => c.nome.toLowerCase().includes("ar"));
+    const comodidadeHidro = comodidadesCatalogo.find((c) => c.nome.toLowerCase().includes("hidro"));
+
     // Step 1 — Identificação
-    const [residencia, setResidencia] = useState("");
+    const [residenciaId, setResidenciaId] = useState<number | null>(null);
     const [nomeQuarto, setNomeQuarto] = useState("");
     const [tipo, setTipo] = useState<TipoQuarto>("");
 
-    // Step 2 — Configuração por tipo
+    // Step 2 — Configuração por tipo (usada para compor o valor base, o back não guarda esses detalhes)
     // Individual
     const [numCamas, setNumCamas] = useState(1);
     const [adicionalPorCama, setAdicionalPorCama] = useState("");
@@ -141,17 +149,25 @@ export default function CadastrarQuartoModal({ onClose, onConfirm }: Props) {
     // Step 3 — Valor & Adicionais
     const [valorBase, setValorBase] = useState("");
     const [possuiAR, setPossuiAR] = useState(false);
-    const [valorAR, setValorAR] = useState("");
     const [possuiHidro, setPossuiHidro] = useState(false);
-    const [valorHidro, setValorHidro] = useState("");
 
-    const totalDiaria = () => {
-        let total = parseFloat(valorBase) || 0;
-        if (possuiAR) total += parseFloat(valorAR) || 0;
-        if (possuiHidro) total += parseFloat(valorHidro) || 0;
+    const [enviando, setEnviando] = useState(false);
+    const [erro, setErro] = useState<string | null>(null);
+
+    // Adicionais estruturais (cama extra, berço) somados ao valor base — o back só
+    // sabe calcular preço = valorBase + comodidades (Ar/Hidro), então embutimos aqui.
+    const adicionalEstrutural = () => {
+        let total = 0;
         if (tipo === "Individual" && numCamas > 1) total += (numCamas - 1) * (parseFloat(adicionalPorCama) || 0);
         if (tipo === "Duplo") total += parseFloat(adicionalCama) || 0;
         if (temBerco && tipo === "Duplo") total += parseFloat(valorBerco) || 0;
+        return total;
+    };
+
+    const totalDiaria = () => {
+        let total = (parseFloat(valorBase) || 0) + adicionalEstrutural();
+        if (possuiAR) total += comodidadeAr?.preco ?? 0;
+        if (possuiHidro) total += comodidadeHidro?.preco ?? 0;
         return total;
     };
 
@@ -162,7 +178,7 @@ export default function CadastrarQuartoModal({ onClose, onConfirm }: Props) {
         return 0;
     };
 
-    const step1Valido = residencia !== "" && nomeQuarto.trim() !== "" && tipo !== "";
+    const step1Valido = residenciaId !== null && nomeQuarto.trim() !== "" && tipo !== "";
 
     const step2Valido = () => {
         if (tipo === "Individual") return numCamas >= 1;
@@ -172,6 +188,33 @@ export default function CadastrarQuartoModal({ onClose, onConfirm }: Props) {
     };
 
     const step3Valido = valorBase !== "" && parseFloat(valorBase) > 0;
+
+    async function handleCadastrar() {
+        if (!residenciaId || !tipo) return;
+        setErro(null);
+        setEnviando(true);
+        try {
+            const comodidadeIds: number[] = [];
+            if (possuiAR && comodidadeAr) comodidadeIds.push(comodidadeAr.id);
+            if (possuiHidro && comodidadeHidro) comodidadeIds.push(comodidadeHidro.id);
+
+            await api.quartos.criar({
+                nome: nomeQuarto,
+                tipo,
+                // valor base já inclui os adicionais estruturais (cama extra, berço);
+                // Ar-Condicionado e Hidromassagem entram como comodidades reais do catálogo.
+                valorBase: (parseFloat(valorBase) || 0) + adicionalEstrutural(),
+                residenciaId,
+                comodidadeIds,
+                cor: residencias.find((r) => r.id === residenciaId)?.cor,
+            });
+            onConfirm();
+        } catch (e) {
+            setErro(e instanceof ApiError ? e.message : "Erro ao cadastrar quarto.");
+        } finally {
+            setEnviando(false);
+        }
+    }
 
     return (
         <div
@@ -201,9 +244,9 @@ export default function CadastrarQuartoModal({ onClose, onConfirm }: Props) {
                         <div className="flex flex-col gap-4">
                             <Campo label="Residência">
                                 <SelectEstilizado
-                                    value={residencia}
-                                    onChange={setResidencia}
-                                    options={residencias}
+                                    value={residencias.find((r) => r.id === residenciaId)?.nome ?? ""}
+                                    onChange={(nome) => setResidenciaId(residencias.find((r) => r.nome === nome)?.id ?? null)}
+                                    options={residencias.map((r) => r.nome)}
                                     placeholder="Selecione a residência"
                                 />
                             </Campo>
@@ -424,6 +467,9 @@ export default function CadastrarQuartoModal({ onClose, onConfirm }: Props) {
                                     />
                                 </Campo>
                             </div>
+                            <p className="text-xs text-gray-400 -mt-2">
+                                O sistema ainda não aplica esses percentuais automaticamente por hóspede — use o valor base abaixo já com o ajuste desejado.
+                            </p>
                         </div>
                     )}
 
@@ -447,7 +493,8 @@ export default function CadastrarQuartoModal({ onClose, onConfirm }: Props) {
                             <div className="flex items-center justify-between">
                                 <button
                                     onClick={() => setPossuiAR(!possuiAR)}
-                                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 text-sm font-semibold cursor-pointer transition-all"
+                                    disabled={!comodidadeAr}
+                                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 text-sm font-semibold cursor-pointer transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                                     style={{
                                         borderColor: possuiAR ? BRAND : "#e5e7eb",
                                         backgroundColor: possuiAR ? "#E8F0F3" : "white",
@@ -456,16 +503,8 @@ export default function CadastrarQuartoModal({ onClose, onConfirm }: Props) {
                                 >
                                     {possuiAR ? "✓" : "+"} Ar-Condicionado
                                 </button>
-                                {possuiAR && (
-                                    <input
-                                        type="number"
-                                        placeholder="R$ adicional"
-                                        value={valorAR}
-                                        onChange={(e) => setValorAR(e.target.value)}
-                                        min={0}
-                                        className="w-32 border-2 rounded-xl px-3 py-2 text-sm outline-none"
-                                        style={{ borderColor: valorAR ? BRAND : "#e5e7eb" }}
-                                    />
+                                {comodidadeAr && (
+                                    <span className="text-sm text-gray-500">{comodidadeAr.precoFormatado}/dia</span>
                                 )}
                             </div>
 
@@ -474,7 +513,8 @@ export default function CadastrarQuartoModal({ onClose, onConfirm }: Props) {
                                 <div className="flex items-center justify-between">
                                     <button
                                         onClick={() => setPossuiHidro(!possuiHidro)}
-                                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 text-sm font-semibold cursor-pointer transition-all"
+                                        disabled={!comodidadeHidro}
+                                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 text-sm font-semibold cursor-pointer transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                                         style={{
                                             borderColor: possuiHidro ? BRAND : "#e5e7eb",
                                             backgroundColor: possuiHidro ? "#E8F0F3" : "white",
@@ -483,16 +523,8 @@ export default function CadastrarQuartoModal({ onClose, onConfirm }: Props) {
                                     >
                                         {possuiHidro ? "✓" : "+"} Hidromassagem
                                     </button>
-                                    {possuiHidro && (
-                                        <input
-                                            type="number"
-                                            placeholder="R$ adicional"
-                                            value={valorHidro}
-                                            onChange={(e) => setValorHidro(e.target.value)}
-                                            min={0}
-                                            className="w-32 border-2 rounded-xl px-3 py-2 text-sm outline-none"
-                                            style={{ borderColor: valorHidro ? BRAND : "#e5e7eb" }}
-                                        />
+                                    {comodidadeHidro && (
+                                        <span className="text-sm text-gray-500">{comodidadeHidro.precoFormatado}/dia</span>
                                     )}
                                 </div>
                             )}
@@ -507,6 +539,12 @@ export default function CadastrarQuartoModal({ onClose, onConfirm }: Props) {
                                     <p className="text-xs text-gray-400">
                                         Capacidade: {capacidadeMaxima()} hóspede{capacidadeMaxima() !== 1 ? "s" : ""}
                                     </p>
+                                </div>
+                            )}
+
+                            {erro && (
+                                <div className="px-4 py-2 rounded-xl text-sm" style={{ backgroundColor: "#FEF3F2", color: "#B91C1C" }}>
+                                    {erro}
                                 </div>
                             )}
                         </div>
@@ -525,14 +563,14 @@ export default function CadastrarQuartoModal({ onClose, onConfirm }: Props) {
                         {step === 1 ? "Cancelar" : "Voltar"}
                     </button>
                     <button
-                        onClick={() => step < 3 ? setStep(step + 1) : onConfirm()}
-                        disabled={step === 1 ? !step1Valido : step === 2 ? !step2Valido() : !step3Valido}
+                        onClick={() => step < 3 ? setStep(step + 1) : handleCadastrar()}
+                        disabled={(step === 1 ? !step1Valido : step === 2 ? !step2Valido() : !step3Valido) || enviando}
                         className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                         style={{ backgroundColor: BRAND }}
                         onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.backgroundColor = "#15394d"; }}
                         onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = BRAND; }}
                     >
-                        {step === 3 ? "Cadastrar Quarto" : "Próximo"}
+                        {step === 3 ? (enviando ? "Cadastrando..." : "Cadastrar Quarto") : "Próximo"}
                     </button>
                 </div>
             </div>

@@ -3,19 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import HistoricoResidenciaModal from "@/components/HistoricoResidenciaModal";
-
-type Residencia = {
-    id: number;
-    nome: string;
-    endereco: string;
-    cep: string;
-    telefone: string;
-    email: string;
-    totalQuartos: number;
-    disponiveis: number;
-    ocupados: number;
-    cor: string;
-};
+import type { Residencia } from "@/lib/api";
 
 const BRAND = "#1A4A5E";
 

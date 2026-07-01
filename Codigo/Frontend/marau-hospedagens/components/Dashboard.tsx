@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import PageHeader from "@/components/PageHeader";
 import MetricCard from "@/components/MetricCard";
 import HistoryTimeline, { type HistoryEntry } from "@/components/HistoryTimeline";
 import AvailabilityCalendar from "@/components/AvailabilityCalendar";
 import NovaReservaModal from "@/components/NovaReservaModal";
+import { api, ApiError, type DashboardResumo } from "@/lib/api";
 
 function Toast({ onDone }: { onDone: () => void }) {
     const [visible, setVisible] = useState(false);
@@ -32,14 +33,14 @@ function Toast({ onDone }: { onDone: () => void }) {
     );
 }
 
-const history: HistoryEntry[] = [
-    { id: 1, date: "16/04/2025", time: "10:22", text: "Ana Lima fez check-in — Quarto Casal · Casa da Praia" },
-    { id: 2, date: "16/04/2025", time: "08:45", text: "Recibo #0034 emitido — R$ 480,00 · João Santos" },
-    { id: 3, date: "15/04/2025", time: "12:00", text: "Check-out — Carlos Mendes · Pousada do Mato Qto 02" },
-];
-
 function getMesAtual() {
     return new Date().toLocaleString("pt-BR", { month: "long", year: "numeric" });
+}
+
+// Extrai um número de "R$ 4.820,50" -> 4820.5
+function parseValorBRL(v: string): number {
+    const num = parseFloat(v.replace("R$", "").trim().replace(/\./g, "").replace(",", "."));
+    return isNaN(num) ? 0 : num;
 }
 
 export default function DashboardPage() {
@@ -50,7 +51,32 @@ export default function DashboardPage() {
     const [residenciaInicial, setResidenciaInicial] = useState("");
     const [quartoInicial, setQuartoInicial] = useState("");
 
+    const [resumo, setResumo] = useState<DashboardResumo | null>(null);
+    const [erro, setErro] = useState<string | null>(null);
+    const [refreshKey, setRefreshKey] = useState(0);
+
     const subtitulo = `Dados Referentes: ${getMesAtual().replace(/^\w/, (c) => c.toUpperCase())}`;
+
+    const carregarResumo = useCallback(async () => {
+        try {
+            setResumo(await api.dashboard.resumo());
+        } catch (e) {
+            setErro(e instanceof ApiError ? e.message : "Erro ao carregar o painel.");
+        }
+    }, []);
+
+    useEffect(() => {
+        void (async () => {
+            await carregarResumo();
+        })();
+    }, [carregarResumo, refreshKey]);
+
+    const history: HistoryEntry[] = (resumo?.ultimasReservas ?? []).map((a) => ({
+        id: a.id,
+        date: a.entrada.split(" ")[0] ?? "",
+        time: a.entrada.split(" ")[1] ?? "",
+        text: `${a.cliente} · ${a.residencia} · ${a.quarto} (${a.status.toUpperCase()})`,
+    }));
 
     function handleRangeSelect(entrada: string, saida: string) {
         setEntradaInicial(entrada);
@@ -76,11 +102,17 @@ export default function DashboardPage() {
                 botao={{ label: "Nova Reserva", onClick: () => setModalAberto(true) }}
             />
 
+            {erro && (
+                <div className="mb-6 px-4 py-3 rounded-xl text-sm" style={{ backgroundColor: "#FEF3F2", color: "#B91C1C" }}>
+                    {erro}
+                </div>
+            )}
+
             <div className="grid grid-cols-4 gap-4 mb-8">
-                <MetricCard label="Residências"      value={4}    sub="cadastradas"    borderColor="#1C4B60" valueColor="#1C4B60" />
-                <MetricCard label="Quartos Ocupados" value={7}    sub="de 14 no total" borderColor="#C23E23" valueColor="#C23E23" />
-                <MetricCard label="Receita do Mês"   value={4820} sub="15 aluguéis"    borderColor="#47977B" valueColor="#47977B" prefix="R$ " decimals={2} />
-                <MetricCard label="Clientes"         value={23}   sub="cadastrados"    borderColor="#4EA3B8" valueColor="#38bdf8" />
+                <MetricCard label="Residências"      value={resumo?.totalResidencias ?? 0}    sub="cadastradas"    borderColor="#1C4B60" valueColor="#1C4B60" />
+                <MetricCard label="Quartos Ocupados" value={resumo?.quartosOcupados ?? 0}    sub={`de ${resumo?.totalQuartos ?? 0} no total`} borderColor="#C23E23" valueColor="#C23E23" />
+                <MetricCard label="Receita do Mês"   value={resumo ? parseValorBRL(resumo.receitaTotal) : 0} sub={`${resumo?.estadiasConcluidas ?? 0} aluguéis`}    borderColor="#47977B" valueColor="#47977B" prefix="R$ " decimals={2} />
+                <MetricCard label="Clientes"         value={resumo?.totalClientes ?? 0}   sub="cadastrados"    borderColor="#4EA3B8" valueColor="#38bdf8" />
             </div>
 
             <div className="grid grid-cols-[600px_1fr] gap-16">
@@ -91,8 +123,12 @@ export default function DashboardPage() {
                                           onQuartoChange={setQuartoInicial}/>
                 </div>
                 <div>
-                    <h2 className="text-base font-semibold text-gray-700 mb-4">Histórico Recente</h2>
-                    <HistoryTimeline entries={history} />
+                    <h2 className="text-base font-semibold text-gray-700 mb-4">Últimas Reservas</h2>
+                    {history.length === 0 ? (
+                        <p className="text-sm text-gray-400">Nenhuma reserva registrada ainda.</p>
+                    ) : (
+                        <HistoryTimeline entries={history} />
+                    )}
                 </div>
             </div>
 
@@ -106,6 +142,7 @@ export default function DashboardPage() {
                     onConfirm={() => {
                         handleFecharModal();
                         setShowToast(true);
+                        setRefreshKey((k) => k + 1);
                     }}
                 />
             )}

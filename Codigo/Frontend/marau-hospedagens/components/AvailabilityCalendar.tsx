@@ -1,22 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
-
-type DayStatus = "available" | "occupied" | "today" | "empty";
+import { useState, useEffect, useCallback } from "react";
+import { api, type Residencia, type Quarto, type Aluguel } from "@/lib/api";
 
 type Props = {
     onRangeSelect?: (entrada: string, saida: string) => void;
     onResidenciaChange?: (v: string) => void;
     onQuartoChange?: (v: string) => void;
 };
-
-const residencias = ["Casa Praiana", "Pousada do Mato"];
-
-const quartos = [
-    { id: 1, nome: "Quarto 01 (Solteiro)", residencia: "Casa Praiana",    diasOcupados: [8, 9, 10, 18] },
-    { id: 2, nome: "Quarto 01 (Casal)",    residencia: "Pousada do Mato", diasOcupados: [5, 6, 7, 19, 20, 24] },
-    { id: 3, nome: "Quarto 02 (Casal)",    residencia: "Casa Praiana",    diasOcupados: [12, 13, 25] },
-];
 
 function buildCalendar(year: number, month: number): (number | null)[] {
     const firstDay = new Date(year, month, 1).getDay();
@@ -36,6 +27,34 @@ function formatarData(year: number, month: number, day: number): string {
 
 function formatarLabel(year: number, month: number, day: number): string {
     return new Date(year, month, day).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+}
+
+// Backend retorna "dd/MM HH:mm" (sem ano). Assumimos o ano corrente do calendário
+// exibido — limitação conhecida enquanto o back não devolver o ano nessa listagem.
+function parseDiaMes(dataStr: string): { dia: number; mes: number } | null {
+    const [dataParte] = dataStr.split(" ");
+    if (!dataParte) return null;
+    const [d, m] = dataParte.split("/").map(Number);
+    if (!d || !m) return null;
+    return { dia: d, mes: m - 1 };
+}
+
+/** Marca como ocupado todo dia entre entrada e saída (exclusive na saída, já que dia de saída pode receber novo hóspede à tarde). */
+function diasOcupadosNoMes(aluguel: Aluguel, mesAtual: number): number[] {
+    const entrada = parseDiaMes(aluguel.entrada);
+    const saida = parseDiaMes(aluguel.saida);
+    if (!entrada || !saida) return [];
+    const dias: number[] = [];
+    if (entrada.mes === mesAtual) {
+        const fimNoMes = saida.mes === mesAtual ? saida.dia : 31;
+        for (let d = entrada.dia; d < fimNoMes; d++) dias.push(d);
+        if (saida.mes !== mesAtual) {
+            for (let d = entrada.dia; d <= 31; d++) if (!dias.includes(d)) dias.push(d);
+        }
+    } else if (saida.mes === mesAtual) {
+        for (let d = 1; d < saida.dia; d++) dias.push(d);
+    }
+    return dias;
 }
 
 const dayLabels = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
@@ -78,12 +97,43 @@ export default function AvailabilityCalendar({ onRangeSelect, onResidenciaChange
     const [dataFim, setDataFim] = useState<Date | null>(null);
     const [hover, setHover] = useState<Date | null>(null);
 
+    const [residencias, setResidencias] = useState<Residencia[]>([]);
+    const [quartos, setQuartos] = useState<Quarto[]>([]);
+    const [alugueis, setAlugueis] = useState<Aluguel[]>([]);
+
+    useEffect(() => {
+        api.residencias.listar().then(setResidencias).catch(() => {});
+        api.quartos.listar().then(setQuartos).catch(() => {});
+    }, []);
+
+    const quartoAtualObj = quartos.find(
+        (q) => q.residencia === residenciaSelecionada && q.nome === quartoSelecionado
+    );
+
+    const carregarOcupacao = useCallback(() => {
+        if (!quartoAtualObj) {
+            setAlugueis([]);
+            return;
+        }
+        api.alugueis.listar(residenciaSelecionada)
+            .then((lista) => setAlugueis(lista.filter((a) =>
+                a.quartoId === quartoAtualObj.id && (a.status === "reserva" || a.status === "ocupado")
+            )))
+            .catch(() => setAlugueis([]));
+    }, [quartoAtualObj, residenciaSelecionada]);
+
+    useEffect(() => {
+        void (async () => {
+            carregarOcupacao();
+        })();
+    }, [carregarOcupacao]);
+
     const todayDay = now.getDate();
     const isCurrentMonth = mes === now.getMonth() && ano === now.getFullYear();
 
     useEffect(() => {
-        if (mes > 11) { setMes(0);  setAno((a) => a + 1); }
-        if (mes < 0)  { setMes(11); setAno((a) => a - 1); }
+        if (mes > 11) { queueMicrotask(() => { setMes(0); setAno((a) => a + 1); }); }
+        if (mes < 0)  { queueMicrotask(() => { setMes(11); setAno((a) => a - 1); }); }
     }, [mes]);
 
     function handleResidencia(v: string) {
@@ -102,14 +152,13 @@ export default function AvailabilityCalendar({ onRangeSelect, onResidenciaChange
         onQuartoChange?.(v);
     }
 
+    const residenciasNomes = residencias.map((r) => r.nome);
     const quartosDisponiveis = quartos
         .filter((q) => q.residencia === residenciaSelecionada)
         .map((q) => q.nome);
 
-    const quartoAtual = quartos.find(
-        (q) => q.residencia === residenciaSelecionada && q.nome === quartoSelecionado
-    );
-    const occupiedSet = new Set<number>(quartoAtual?.diasOcupados ?? []);
+    const diasOcupados = alugueis.flatMap((a) => diasOcupadosNoMes(a, mes));
+    const occupiedSet = new Set<number>(diasOcupados);
 
     function hasOccupiedBetween(start: Date, end: Date): boolean {
         const s = start < end ? start : end;
@@ -189,7 +238,7 @@ export default function AvailabilityCalendar({ onRangeSelect, onResidenciaChange
     return (
         <div className="flex flex-col gap-3">
             <div className="flex gap-2">
-                <SelectCalendario label="Residência" value={residenciaSelecionada} options={residencias} onChange={handleResidencia} />
+                <SelectCalendario label="Residência" value={residenciaSelecionada} options={residenciasNomes} onChange={handleResidencia} />
                 <SelectCalendario label="Quarto" value={quartoSelecionado} options={quartosDisponiveis} onChange={handleQuarto} disabled={!residenciaSelecionada} />
             </div>
 

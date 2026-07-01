@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { api, ApiError, type Residencia, type Quarto, type Cliente } from "@/lib/api";
 
 type Props = {
     onClose: () => void;
@@ -10,33 +11,6 @@ type Props = {
     residenciaInicial?: string;
     quartoInicial?: string;
 };
-
-const residencias = [
-    {
-        id: 1,
-        nome: "Casa Praiana",
-        quartos: [
-            { nome: "Quarto 01 (Solteiro)", comodidades: ["Ar-Condicionado"] },
-            { nome: "Quarto 02 (Casal)", comodidades: ["Ar-Condicionado", "Hidromassagem"] },
-            { nome: "Quarto 03 (Casal)", comodidades: [] },
-        ],
-    },
-    {
-        id: 2,
-        nome: "Pousada do Mato",
-        quartos: [
-            { nome: "Quarto 01 (Casal)", comodidades: ["Ar-Condicionado", "Hidromassagem"] },
-            { nome: "Quarto 02 (Solteiro)", comodidades: ["Ar-Condicionado"] },
-        ],
-    },
-];
-
-const clientes = [
-    { id: 1, nome: "Ana Lima", cpf: "032.456.789-01" },
-    { id: 2, nome: "João Santos", cpf: "045.678.912-23" },
-    { id: 3, nome: "Carlos Mendes", cpf: "078.901.234-56" },
-    { id: 4, nome: "Marina Faria", cpf: "089.123.456-78" },
-];
 
 const BRAND = "#1A4A5E";
 
@@ -81,9 +55,19 @@ function StepIndicator({ step }: { step: number }) {
     );
 }
 
-// ✅ FIX: saidaInicial agora é desestruturado corretamente
 export default function NovaReservaModal({ onClose, onConfirm, entradaInicial, saidaInicial, residenciaInicial, quartoInicial }: Props) {
     const [step, setStep] = useState(1);
+
+    const [residencias, setResidencias] = useState<Residencia[]>([]);
+    const [quartos, setQuartos] = useState<Quarto[]>([]);
+    const [clientes, setClientes] = useState<Cliente[]>([]);
+
+    useEffect(() => {
+        api.residencias.listar().then(setResidencias).catch(() => {});
+        api.quartos.listar().then(setQuartos).catch(() => {});
+        api.clientes.listar().then(setClientes).catch(() => {});
+    }, []);
+
     const [residencia, setResidencia] = useState(residenciaInicial ?? "");
     const [quarto, setQuarto] = useState(quartoInicial ?? "");
     const [entrada, setEntrada] = useState(entradaInicial ?? "");
@@ -92,8 +76,13 @@ export default function NovaReservaModal({ onClose, onConfirm, entradaInicial, s
     const [busca, setBusca] = useState("");
     const [pagamento, setPagamento] = useState("Dinheiro");
 
-    const residenciaSelecionada = residencias.find((r) => r.nome === residencia);
-    const quartosDisponiveis = residenciaSelecionada?.quartos ?? [];
+    const [enviando, setEnviando] = useState(false);
+    const [erro, setErro] = useState<string | null>(null);
+
+    const quartosDisponiveis = useMemo(
+        () => quartos.filter((q) => q.residencia === residencia),
+        [quartos, residencia]
+    );
     const quartoSelecionado = quartosDisponiveis.find((q) => q.nome === quarto);
 
     const clienteFiltrado = clientes.filter((c) =>
@@ -104,6 +93,26 @@ export default function NovaReservaModal({ onClose, onConfirm, entradaInicial, s
     const diarias = entrada && saida
         ? Math.max(0, Math.ceil((new Date(saida).getTime() - new Date(entrada).getTime()) / (1000 * 60 * 60 * 24)))
         : 0;
+
+    async function handleConfirmar() {
+        if (!quartoSelecionado || !clienteId || !entrada || !saida) return;
+        setErro(null);
+        setEnviando(true);
+        try {
+            await api.alugueis.criar({
+                clienteId,
+                quartoId: quartoSelecionado.id,
+                entrada: `${entrada}T12:00:00`,
+                saida: `${saida}T12:00:00`,
+                status: "Reserva",
+            });
+            onConfirm();
+        } catch (e) {
+            setErro(e instanceof ApiError ? e.message : "Erro ao criar a reserva.");
+        } finally {
+            setEnviando(false);
+        }
+    }
 
     return (
         <div
@@ -154,7 +163,7 @@ export default function NovaReservaModal({ onClose, onConfirm, entradaInicial, s
                                 >
                                     <option value="">Selecione o quarto</option>
                                     {quartosDisponiveis.map((q) => (
-                                        <option key={q.nome} value={q.nome}>{q.nome}</option>
+                                        <option key={q.id} value={q.nome}>{q.nome} — {q.precoFormatado}/dia</option>
                                     ))}
                                 </select>
 
@@ -163,11 +172,11 @@ export default function NovaReservaModal({ onClose, onConfirm, entradaInicial, s
                                         {quartoSelecionado.comodidades.length > 0 ? (
                                             quartoSelecionado.comodidades.map((c) => (
                                                 <span
-                                                    key={c}
+                                                    key={c.nome}
                                                     className="px-3 py-1 rounded-full text-xs font-medium"
                                                     style={{ backgroundColor: "#E8F0F3", color: BRAND }}
                                                 >
-                                                    ✓ {c}
+                                                    ✓ {c.nome}
                                                 </span>
                                             ))
                                         ) : (
@@ -203,6 +212,7 @@ export default function NovaReservaModal({ onClose, onConfirm, entradaInicial, s
                             {diarias > 0 && (
                                 <div className="rounded-xl px-4 py-3 text-sm font-medium" style={{ backgroundColor: "#E8F0F3", color: BRAND }}>
                                     {diarias} diária{diarias > 1 ? "s" : ""} selecionada{diarias > 1 ? "s" : ""}
+                                    {quartoSelecionado && ` · Total estimado: R$ ${(quartoSelecionado.preco * diarias).toFixed(2)}`}
                                 </div>
                             )}
                         </div>
@@ -223,6 +233,9 @@ export default function NovaReservaModal({ onClose, onConfirm, entradaInicial, s
                                 />
                             </div>
                             <div className="flex flex-col gap-2 max-h-52 overflow-y-auto">
+                                {clienteFiltrado.length === 0 && (
+                                    <p className="text-sm text-gray-400 text-center py-4">Nenhum cliente encontrado.</p>
+                                )}
                                 {clienteFiltrado.map((c) => (
                                     <button
                                         key={c.id}
@@ -245,9 +258,6 @@ export default function NovaReservaModal({ onClose, onConfirm, entradaInicial, s
                                     </button>
                                 ))}
                             </div>
-                            <button className="text-sm font-semibold cursor-pointer underline text-center" style={{ color: BRAND }}>
-                                + Cadastrar novo cliente
-                            </button>
                         </div>
                     )}
 
@@ -261,8 +271,8 @@ export default function NovaReservaModal({ onClose, onConfirm, entradaInicial, s
                                     {quartoSelecionado && quartoSelecionado.comodidades.length > 0 && (
                                         <div className="flex gap-2 mt-2">
                                             {quartoSelecionado.comodidades.map((c) => (
-                                                <span key={c} className="px-2 py-0.5 rounded-full text-xs font-medium" style={{ backgroundColor: "#E8F0F3", color: BRAND }}>
-                                                    {c}
+                                                <span key={c.nome} className="px-2 py-0.5 rounded-full text-xs font-medium" style={{ backgroundColor: "#E8F0F3", color: BRAND }}>
+                                                    {c.nome}
                                                 </span>
                                             ))}
                                         </div>
@@ -290,7 +300,16 @@ export default function NovaReservaModal({ onClose, onConfirm, entradaInicial, s
                                     <option>PIX</option>
                                     <option>Transferência</option>
                                 </select>
+                                <p className="text-xs text-gray-400 mt-1">
+                                    A forma de pagamento é definida na tela de recibo, após a hospedagem ser concluída.
+                                </p>
                             </div>
+
+                            {erro && (
+                                <div className="px-4 py-2 rounded-xl text-sm" style={{ backgroundColor: "#FEF3F2", color: "#B91C1C" }}>
+                                    {erro}
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
@@ -312,17 +331,18 @@ export default function NovaReservaModal({ onClose, onConfirm, entradaInicial, s
                         {step === 1 ? "Cancelar" : "Voltar"}
                     </button>
                     <button
-                        onClick={() => step < 3 ? setStep(step + 1) : onConfirm()}
+                        onClick={() => step < 3 ? setStep(step + 1) : handleConfirmar()}
                         disabled={
                             (step === 1 && (!residencia || !quarto || !entrada || !saida)) ||
-                            (step === 2 && !clienteId)
+                            (step === 2 && !clienteId) ||
+                            enviando
                         }
                         className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                         style={{ backgroundColor: BRAND }}
                         onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.backgroundColor = "#15394d"; }}
                         onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = BRAND; }}
                     >
-                        {step === 3 ? "Confirmar Reserva" : "Próximo"}
+                        {step === 3 ? (enviando ? "Confirmando..." : "Confirmar Reserva") : "Próximo"}
                     </button>
                 </div>
             </div>

@@ -1,51 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 import QuartoCard from "@/components/QuartoCard";
 import CadastrarQuartoModal from "@/components/CadastrarQuartoModal";
-
-const residencias = ["Todas", "Casa Praiana", "Pousada do Mato"];
-
-const quartos = [
-    {
-        id: 1,
-        tipo: "Individual",
-        nome: "Quarto Solteiro",
-        residencia: "Casa Praiana",
-        preco: 120,
-        status: "disponivel" as const,
-        comodidades: [{ nome: "Ar-Condicionado", inclusa: true }],
-        descricao: "Valor base: R$110 + Ar: R$10 = R$120/diária",
-        cor: "#1A4A5E",
-    },
-    {
-        id: 2,
-        tipo: "Duplo",
-        nome: "Quarto Casal",
-        residencia: "Pousada do Mato",
-        preco: 200,
-        status: "ocupado" as const,
-        comodidades: [
-            { nome: "Ar-Condicionado", inclusa: true },
-            { nome: "Hidromassagem", inclusa: true },
-        ],
-        descricao: "Valor base: R$160 + Ar: R$10 + Hidro: R$30 = R$200/diária",
-        cor: "#C0624A",
-    },
-    {
-        id: 3,
-        tipo: "Duplo",
-        nome: "Quarto Casal",
-        residencia: "Casa Praiana",
-        preco: 95,
-        status: "disponivel" as const,
-        comodidades: [],
-        descricao: "Valor base: R$95 = R$95/diária",
-        cor: "#1A4A5E",
-    },
-];
+import { api, ApiError, type Quarto, type Residencia } from "@/lib/api";
 
 function Toast({ onDone }: { onDone: () => void }) {
     const [visible, setVisible] = useState(false);
@@ -78,27 +38,58 @@ function Toast({ onDone }: { onDone: () => void }) {
     );
 }
 
-export default function QuartosPage() {
+function QuartosContent() {
     const [modalAberto, setModalAberto] = useState(false);
     const [showToast, setShowToast] = useState(false);
     const [residenciaSelecionada, setResidenciaSelecionada] = useState("Todas");
     const [tipoSelecionado, setTipoSelecionado] = useState("Todos");
 
+    const [residencias, setResidencias] = useState<Residencia[]>([]);
+    const [quartos, setQuartos] = useState<Quarto[]>([]);
+    const [carregando, setCarregando] = useState(true);
+    const [erro, setErro] = useState<string | null>(null);
+
     const searchParams = useSearchParams();
 
     useEffect(() => {
         const param = searchParams.get("residencia");
-        if (param) setResidenciaSelecionada(param);
+        if (param) queueMicrotask(() => setResidenciaSelecionada(param));
     }, [searchParams]);
 
+    const carregar = useCallback(async () => {
+        setCarregando(true);
+        setErro(null);
+        try {
+            const [rs, qs] = await Promise.all([api.residencias.listar(), api.quartos.listar()]);
+            setResidencias(rs);
+            setQuartos(qs);
+        } catch (e) {
+            setErro(e instanceof ApiError ? e.message : "Erro ao carregar quartos.");
+        } finally {
+            setCarregando(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        void (async () => {
+            await carregar();
+        })();
+    }, [carregar]);
+
     const tipos = ["Todos", "Individual", "Duplo", "Familia"];
-    const residenciasParaExibir = residencias.filter((r) => r !== "Todas");
+    const nomesResidencias = residencias.map((r) => r.nome);
 
     const quartosFiltrados = (residencia: string) =>
         quartos.filter((q) =>
             q.residencia === residencia &&
             (tipoSelecionado === "Todos" || q.tipo === tipoSelecionado)
         );
+
+    async function handleCadastrado() {
+        setModalAberto(false);
+        setShowToast(true);
+        carregar();
+    }
 
     return (
         <div className="flex-1 px-10 py-8 overflow-auto">
@@ -110,6 +101,12 @@ export default function QuartosPage() {
                 botao={{ label: "Cadastrar Quarto", onClick: () => setModalAberto(true) }}
             />
 
+            {erro && (
+                <div className="mb-6 px-4 py-3 rounded-xl text-sm" style={{ backgroundColor: "#FEF3F2", color: "#B91C1C" }}>
+                    {erro}
+                </div>
+            )}
+
             {/* Filtros */}
             <div className="flex items-center gap-6 mb-8">
                 <div className="flex items-center gap-3">
@@ -120,7 +117,8 @@ export default function QuartosPage() {
                             onChange={(e) => setResidenciaSelecionada(e.target.value)}
                             className="absolute inset-0 opacity-0 cursor-pointer w-full"
                         >
-                            {residencias.map((r) => <option key={r}>{r}</option>)}
+                            <option>Todas</option>
+                            {nomesResidencias.map((r) => <option key={r}>{r}</option>)}
                         </select>
                         {residenciaSelecionada}
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -150,39 +148,49 @@ export default function QuartosPage() {
                 </div>
             </div>
 
-            {/* Listagem por residência */}
-            <div className="flex flex-col gap-10">
-                {residenciasParaExibir
-                    .filter((r) => residenciaSelecionada === "Todas" || r === residenciaSelecionada)
-                    .map((residencia) => (
-                        <div key={residencia}>
-                            <div className="flex items-center gap-3 mb-3">
-                                <h2 className="text-base font-bold" style={{ color: "#1A4A5E" }}>{residencia}</h2>
-                                <span
-                                    className="text-xs font-semibold px-2.5 py-0.5 rounded-full"
-                                    style={{ backgroundColor: "#E8F0F3", color: "#1A4A5E" }}
-                                >
-                                    {quartosFiltrados(residencia).length} quarto{quartosFiltrados(residencia).length !== 1 ? "s" : ""}
-                                </span>
+            {carregando ? (
+                <p className="text-sm text-gray-400">Carregando quartos...</p>
+            ) : (
+                /* Listagem por residência */
+                <div className="flex flex-col gap-10">
+                    {nomesResidencias
+                        .filter((r) => residenciaSelecionada === "Todas" || r === residenciaSelecionada)
+                        .map((residencia) => (
+                            <div key={residencia}>
+                                <div className="flex items-center gap-3 mb-3">
+                                    <h2 className="text-base font-bold" style={{ color: "#1A4A5E" }}>{residencia}</h2>
+                                    <span
+                                        className="text-xs font-semibold px-2.5 py-0.5 rounded-full"
+                                        style={{ backgroundColor: "#E8F0F3", color: "#1A4A5E" }}
+                                    >
+                                        {quartosFiltrados(residencia).length} quarto{quartosFiltrados(residencia).length !== 1 ? "s" : ""}
+                                    </span>
+                                </div>
+                                <div className="grid grid-cols-3 gap-6">
+                                    {quartosFiltrados(residencia).map((q) => (
+                                        <QuartoCard key={q.id} q={q} />
+                                    ))}
+                                </div>
                             </div>
-                            <div className="grid grid-cols-3 gap-6">
-                                {quartosFiltrados(residencia).map((q) => (
-                                    <QuartoCard key={q.id} q={q} />
-                                ))}
-                            </div>
-                        </div>
-                    ))}
-            </div>
+                        ))}
+                </div>
+            )}
 
             {modalAberto && (
                 <CadastrarQuartoModal
+                    residencias={residencias}
                     onClose={() => setModalAberto(false)}
-                    onConfirm={() => {
-                        setModalAberto(false);
-                        setShowToast(true);
-                    }}
+                    onConfirm={handleCadastrado}
                 />
             )}
         </div>
+    );
+}
+
+export default function QuartosPage() {
+    return (
+        <Suspense fallback={<div className="flex-1 px-10 py-8">Carregando...</div>}>
+            <QuartosContent />
+        </Suspense>
     );
 }

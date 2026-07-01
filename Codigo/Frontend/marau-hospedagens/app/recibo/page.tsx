@@ -1,45 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import { api, ApiError, type Recibo } from "@/lib/api";
 
 const BRAND = "#1A4A5E";
 
-// Mock — substituir por fetch da API quando o back estiver pronto
-const alugueis = [
-    {
-        id: 2,
-        numero: "0034",
-        emitidoEm: "16/04/2025 às 08:45",
-        hospede: { nome: "João Santos", cpf: "045.678.912-23", email: "joao.santos@email.com" },
-        acomodacao: { nome: "Casa da Praia · Quarto 01 (Solteiro)", endereco: "Rua das Amendoeiras, 42 · Barra Grande, Maraú – BA" },
-        entrada: "12/04/2025", entradaHora: "12:00",
-        saida: "16/04/2025", saidaHora: "12:00",
-        diarias: 4,
-        itens: [
-            { label: "Valor base (solteiro):", valor: "R$ 110,00/dia" },
-            { label: "+ Ar-condicionado:", valor: "R$ 10,00/dia" },
-            { label: "Valor da diária (final):", valor: "R$ 120,00/dia" },
-        ],
-        totalFinal: "R$ 480,00",
-    },
-    {
-        id: 4,
-        numero: "0035",
-        emitidoEm: "14/04/2025 às 12:00",
-        hospede: { nome: "Carlos Mendes", cpf: "078.901.234-56", email: "carlos.m@email.com" },
-        acomodacao: { nome: "Pousada do Mato · Quarto 02 (Solteiro)", endereco: "Alameda das Bromélias, 8 · Algodões, Maraú – BA" },
-        entrada: "10/04/2025", entradaHora: "12:00",
-        saida: "14/04/2025", saidaHora: "12:00",
-        diarias: 4,
-        itens: [
-            { label: "Valor base (solteiro):", valor: "R$ 80,00/dia" },
-            { label: "+ Ar-condicionado:", valor: "R$ 10,00/dia" },
-            { label: "Valor da diária (final):", valor: "R$ 90,00/dia" },
-        ],
-        totalFinal: "R$ 360,00",
-    },
-];
+const formasPagamento = ["Dinheiro", "Cartão de Crédito", "Cartão de Débito", "PIX", "Transferência"];
 
 function LinhaInfo({ label, valor }: { label: string; valor: string }) {
     return (
@@ -65,12 +32,59 @@ const IconEmail = () => (
     </svg>
 );
 
-export default function ReciboPage() {
+function ReciboContent() {
     const searchParams = useSearchParams();
-    const id = Number(searchParams.get("id"));
-    const [pagamento, setPagamento] = useState("Dinheiro");
+    const aluguelId = Number(searchParams.get("id"));
 
-    const recibo = alugueis.find((a) => a.id === id);
+    const [recibo, setRecibo] = useState<Recibo | null>(null);
+    const [carregando, setCarregando] = useState(true);
+    const [erro, setErro] = useState<string | null>(null);
+    const [enviandoEmail, setEnviandoEmail] = useState(false);
+    const [emailEnviado, setEmailEnviado] = useState(false);
+
+    useEffect(() => {
+        (async () => {
+            if (!aluguelId) {
+                setCarregando(false);
+                return;
+            }
+            setCarregando(true);
+            setErro(null);
+            try {
+                setRecibo(await api.recibos.porAluguel(aluguelId));
+            } catch (e) {
+                setErro(e instanceof ApiError ? e.message : "Erro ao carregar recibo.");
+            } finally {
+                setCarregando(false);
+            }
+        })();
+    }, [aluguelId]);
+
+    async function handleMudarPagamento(novaForma: string) {
+        if (!recibo) return;
+        setRecibo({ ...recibo, formaPagamento: novaForma }); // otimista
+        try {
+            const atualizado = await api.recibos.atualizarPagamento(recibo.id, novaForma);
+            setRecibo(atualizado);
+        } catch (e) {
+            setErro(e instanceof ApiError ? e.message : "Erro ao atualizar forma de pagamento.");
+        }
+    }
+
+    async function handleEnviarEmail() {
+        if (!recibo) return;
+        setEnviandoEmail(true);
+        setErro(null);
+        try {
+            await api.recibos.enviarEmail(recibo.id);
+            setEmailEnviado(true);
+            setTimeout(() => setEmailEnviado(false), 3000);
+        } catch (e) {
+            setErro(e instanceof ApiError ? e.message : "Erro ao enviar recibo por e-mail.");
+        } finally {
+            setEnviandoEmail(false);
+        }
+    }
 
     const handleImprimir = () => {
         if (!recibo) return;
@@ -142,7 +156,7 @@ export default function ReciboPage() {
           </div>
           <div class="pagamento">
             <span>Forma de pagamento:</span>
-            <strong>${pagamento}</strong>
+            <strong>${recibo.formaPagamento}</strong>
           </div>
           <div class="assinaturas">
             <div class="assinatura">
@@ -165,10 +179,14 @@ export default function ReciboPage() {
         setTimeout(() => { janela.print(); janela.close(); }, 500);
     };
 
-    if (!recibo) {
+    if (carregando) {
+        return <div className="px-10 py-8"><p className="text-gray-500">Carregando recibo...</p></div>;
+    }
+
+    if (erro || !recibo) {
         return (
             <div className="px-10 py-8">
-                <p className="text-gray-500">Recibo não encontrado.</p>
+                <p className="text-gray-500">{erro ?? "Recibo não encontrado."}</p>
             </div>
         );
     }
@@ -188,34 +206,38 @@ export default function ReciboPage() {
                         <IconPrint /> Imprimir
                     </button>
                     <button
-                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-colors cursor-pointer"
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-colors cursor-pointer disabled:opacity-60"
                         style={{ backgroundColor: BRAND }}
                         onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#15394d"; }}
                         onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = BRAND; }}
+                        onClick={handleEnviarEmail}
+                        disabled={enviandoEmail}
                     >
-                        <IconEmail /> Enviar por Email
+                        <IconEmail /> {enviandoEmail ? "Enviando..." : emailEnviado ? "Enviado!" : "Enviar por Email"}
                     </button>
                 </div>
             </div>
 
             <div className="h-0.5 mb-6" style={{ backgroundColor: "#E5D3BA" }} />
 
+            {erro && (
+                <div className="mb-6 px-4 py-3 rounded-xl text-sm" style={{ backgroundColor: "#FEF3F2", color: "#B91C1C" }}>
+                    {erro}
+                </div>
+            )}
+
             {/* Select pagamento */}
             <div className="flex items-center gap-3 mb-6">
                 <label className="text-sm font-semibold text-gray-600">Forma de pagamento:</label>
                 <button className="flex items-center gap-2 border border-gray-200 rounded-lg px-4 py-2 text-sm text-gray-600 bg-white shadow-sm relative cursor-pointer">
                     <select
-                        value={pagamento}
-                        onChange={(e) => setPagamento(e.target.value)}
+                        value={recibo.formaPagamento}
+                        onChange={(e) => handleMudarPagamento(e.target.value)}
                         className="absolute inset-0 opacity-0 cursor-pointer w-full"
                     >
-                        <option>Dinheiro</option>
-                        <option>Cartão de Crédito</option>
-                        <option>Cartão de Débito</option>
-                        <option>PIX</option>
-                        <option>Transferência</option>
+                        {formasPagamento.map((f) => <option key={f}>{f}</option>)}
                     </select>
-                    {pagamento}
+                    {recibo.formaPagamento}
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <polyline points="6 9 12 15 18 9" />
                     </svg>
@@ -260,7 +282,7 @@ export default function ReciboPage() {
 
                     <div className="flex justify-between items-center px-5 py-3 rounded-xl border-2" style={{ borderColor: "#E5D3BA" }}>
                         <span className="text-sm text-gray-400 font-medium">Forma de pagamento:</span>
-                        <span className="text-sm font-bold" style={{ color: BRAND }}>{pagamento}</span>
+                        <span className="text-sm font-bold" style={{ color: BRAND }}>{recibo.formaPagamento}</span>
                     </div>
 
                     <div className="flex justify-between items-end mt-8 pt-6 border-t border-dashed border-gray-200">
@@ -276,5 +298,13 @@ export default function ReciboPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+export default function ReciboPage() {
+    return (
+        <Suspense fallback={<div className="px-10 py-8">Carregando...</div>}>
+            <ReciboContent />
+        </Suspense>
     );
 }

@@ -1,76 +1,9 @@
 "use client";
 
 import PageHeader from "@/components/PageHeader";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import DetalhesReservaModal from "@/components/DetalhesReservaModal";
-
-type StatusAluguel = "ocupado" | "reserva" | "concluido";
-
-type Aluguel = {
-    id: number;
-    cliente: string;
-    residencia: string;
-    quarto: string;
-    entrada: string;
-    saida: string;
-    diarias: number;
-    valorFinal: string;
-    status: StatusAluguel;
-    acaoLabel: string;
-};
-
-const alugueisIniciais: Aluguel[] = [
-    {
-        id: 1,
-        cliente: "Ana Lima",
-        residencia: "Casa Praiana",
-        quarto: "Qto 02",
-        entrada: "17/04 12:00",
-        saida: "21/04 12:00",
-        diarias: 4,
-        valorFinal: "R$ 800,00",
-        status: "ocupado",
-        acaoLabel: "Ver",
-    },
-    {
-        id: 2,
-        cliente: "João Santos",
-        residencia: "Casa Praiana",
-        quarto: "Qto 01",
-        entrada: "12/04 12:00",
-        saida: "16/04 12:00",
-        diarias: 4,
-        valorFinal: "R$ 480,00",
-        status: "concluido",
-        acaoLabel: "Recibo",
-    },
-    {
-        id: 3,
-        cliente: "Marina Faria",
-        residencia: "Pousada do Mato",
-        quarto: "Qto 01",
-        entrada: "20/04 12:00",
-        saida: "25/04 12:00",
-        diarias: 5,
-        valorFinal: "R$ 475,00",
-        status: "reserva",
-        acaoLabel: "Ver",
-    },
-    {
-        id: 4,
-        cliente: "Carlos Mendes",
-        residencia: "Pousada do Mato",
-        quarto: "Qto 02",
-        entrada: "10/04 12:00",
-        saida: "14/04 12:00",
-        diarias: 4,
-        valorFinal: "R$ 360,00",
-        status: "concluido",
-        acaoLabel: "Recibo",
-    },
-];
-
-const residencias = ["Todas", "Casa Praiana", "Pousada do Mato"];
+import { api, ApiError, type Aluguel, type Residencia } from "@/lib/api";
 
 const COLS = "1.4fr 1fr 1fr 1fr 0.6fr 1fr 1fr 0.6fr";
 const BRAND = "#1A4A5E";
@@ -107,7 +40,7 @@ function Toast({ onDone }: { onDone: () => void }) {
     );
 }
 
-function StatusBadge({ status }: { status: StatusAluguel }) {
+function StatusBadge({ status }: { status: Aluguel["status"] }) {
     const map = {
         ocupado:   { label: "OCUPADO",   bg: "#dcfce7", color: "#16a34a" },
         reserva:   { label: "RESERVA",   bg: "#dbeafe", color: "#2563eb" },
@@ -193,20 +126,48 @@ function TabelaAlugueis({ itens, onVerDetalhes }: TabelaProps) {
 }
 
 export default function AlugueisPage() {
-    const [alugueis, setAlugueis] = useState<Aluguel[]>(alugueisIniciais);
+    const [alugueis, setAlugueis] = useState<Aluguel[]>([]);
+    const [residencias, setResidencias] = useState<Residencia[]>([]);
+    const [carregando, setCarregando] = useState(true);
+    const [erro, setErro] = useState<string | null>(null);
     const [residenciaSelecionada, setResidenciaSelecionada] = useState("Todas");
     const [aluguelSelecionado, setAluguelSelecionado] = useState<Aluguel | null>(null);
     const [showToast, setShowToast] = useState(false);
 
-    const residenciasParaExibir = residencias.filter((r) => r !== "Todas");
+    const carregar = useCallback(async () => {
+        setCarregando(true);
+        setErro(null);
+        try {
+            const [as, rs] = await Promise.all([api.alugueis.listar(), api.residencias.listar()]);
+            setAlugueis(as);
+            setResidencias(rs);
+        } catch (e) {
+            setErro(e instanceof ApiError ? e.message : "Erro ao carregar aluguéis.");
+        } finally {
+            setCarregando(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        void (async () => {
+            await carregar();
+        })();
+    }, [carregar]);
+
+    const nomesResidencias = residencias.map((r) => r.nome);
 
     const aluguelFiltrado = (residencia: string) =>
         alugueis.filter((a) => a.residencia === residencia);
 
-    function handleCancelar(id: number) {
-        setAlugueis((prev) => prev.filter((a) => a.id !== id));
-        setAluguelSelecionado(null);
-        setShowToast(true);
+    async function handleCancelar(id: number) {
+        try {
+            await api.alugueis.cancelar(id);
+            setAlugueis((prev) => prev.filter((a) => a.id !== id));
+            setAluguelSelecionado(null);
+            setShowToast(true);
+        } catch (e) {
+            setErro(e instanceof ApiError ? e.message : "Erro ao cancelar reserva.");
+        }
     }
 
     return (
@@ -218,6 +179,12 @@ export default function AlugueisPage() {
                 subtitulo="Registro de estadias e reservas futuras"
             />
 
+            {erro && (
+                <div className="mb-6 px-4 py-3 rounded-xl text-sm" style={{ backgroundColor: "#FEF3F2", color: "#B91C1C" }}>
+                    {erro}
+                </div>
+            )}
+
             <div className="flex items-center gap-3 mb-8">
                 <label className="text-sm font-semibold text-gray-600">Residência:</label>
                 <button className="flex items-center gap-2 border border-gray-200 rounded-lg px-4 py-2 text-sm text-gray-700 bg-white shadow-sm relative cursor-pointer">
@@ -226,7 +193,8 @@ export default function AlugueisPage() {
                         onChange={(e) => setResidenciaSelecionada(e.target.value)}
                         className="absolute inset-0 opacity-0 cursor-pointer w-full"
                     >
-                        {residencias.map((r) => (
+                        <option>Todas</option>
+                        {nomesResidencias.map((r) => (
                             <option key={r}>{r}</option>
                         ))}
                     </select>
@@ -237,29 +205,33 @@ export default function AlugueisPage() {
                 </button>
             </div>
 
-            <div className="flex flex-col gap-10">
-                {residenciasParaExibir
-                    .filter((r) => residenciaSelecionada === "Todas" || r === residenciaSelecionada)
-                    .map((residencia) => (
-                        <div key={residencia}>
-                            <div className="flex items-center gap-3 mb-3">
-                                <h2 className="text-base font-bold" style={{ color: BRAND }}>
-                                    {residencia}
-                                </h2>
-                                <span
-                                    className="text-xs font-semibold px-2.5 py-0.5 rounded-full"
-                                    style={{ backgroundColor: "#E8F0F3", color: "#1A4A5E" }}
-                                >
-                                    {aluguelFiltrado(residencia).length} registro{aluguelFiltrado(residencia).length !== 1 ? "s" : ""}
-                                </span>
+            {carregando ? (
+                <p className="text-sm text-gray-400">Carregando aluguéis...</p>
+            ) : (
+                <div className="flex flex-col gap-10">
+                    {nomesResidencias
+                        .filter((r) => residenciaSelecionada === "Todas" || r === residenciaSelecionada)
+                        .map((residencia) => (
+                            <div key={residencia}>
+                                <div className="flex items-center gap-3 mb-3">
+                                    <h2 className="text-base font-bold" style={{ color: BRAND }}>
+                                        {residencia}
+                                    </h2>
+                                    <span
+                                        className="text-xs font-semibold px-2.5 py-0.5 rounded-full"
+                                        style={{ backgroundColor: "#E8F0F3", color: "#1A4A5E" }}
+                                    >
+                                        {aluguelFiltrado(residencia).length} registro{aluguelFiltrado(residencia).length !== 1 ? "s" : ""}
+                                    </span>
+                                </div>
+                                <TabelaAlugueis
+                                    itens={aluguelFiltrado(residencia)}
+                                    onVerDetalhes={setAluguelSelecionado}
+                                />
                             </div>
-                            <TabelaAlugueis
-                                itens={aluguelFiltrado(residencia)}
-                                onVerDetalhes={setAluguelSelecionado}
-                            />
-                        </div>
-                    ))}
-            </div>
+                        ))}
+                </div>
+            )}
 
             {aluguelSelecionado && (
                 <DetalhesReservaModal

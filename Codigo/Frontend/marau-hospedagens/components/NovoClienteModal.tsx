@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { api, ApiError } from "@/lib/api";
 
 type Props = {
     onClose: () => void;
@@ -32,6 +33,9 @@ export default function NovoClienteModal({ onClose, onConfirm }: Props) {
         return nums.replace(/(\d{2})(\d{5})(\d{0,4})/, "($1) $2-$3");
     };
 
+    const [enviando, setEnviando] = useState(false);
+    const [erro, setErro] = useState<string | null>(null);
+
     const valido =
         nome.trim() !== "" &&
         cpf.length === 14 &&
@@ -40,6 +44,26 @@ export default function NovoClienteModal({ onClose, onConfirm }: Props) {
         endereco.trim() !== "" &&
         cidade.trim() !== "" &&
         estado.trim() !== "";
+
+    async function handleCadastrar() {
+        setErro(null);
+        setEnviando(true);
+        try {
+            await api.clientes.criar({
+                nome,
+                cpf,
+                email,
+                telefone,
+                // Backend guarda um único campo de endereço; juntamos endereço + cidade/UF.
+                endereco: `${endereco}${cidade ? `, ${cidade}` : ""}${estado ? ` - ${estado}` : ""}`,
+            });
+            onConfirm();
+        } catch (e) {
+            setErro(e instanceof ApiError ? e.message : "Erro ao cadastrar cliente.");
+        } finally {
+            setEnviando(false);
+        }
+    }
 
     return (
         <div
@@ -156,6 +180,12 @@ export default function NovoClienteModal({ onClose, onConfirm }: Props) {
                     </div>
                 </div>
 
+                {erro && (
+                    <div className="mx-6 mb-3 px-4 py-2 rounded-xl text-sm" style={{ backgroundColor: "#FEF3F2", color: "#B91C1C" }}>
+                        {erro}
+                    </div>
+                )}
+
                 {/* Footer */}
                 <div className="flex justify-between px-6 py-4 border-t border-gray-100">
                     <button
@@ -168,14 +198,14 @@ export default function NovoClienteModal({ onClose, onConfirm }: Props) {
                         Cancelar
                     </button>
                     <button
-                        onClick={onConfirm}
-                        disabled={!valido}
+                        onClick={handleCadastrar}
+                        disabled={!valido || enviando}
                         className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                         style={{ backgroundColor: BRAND }}
                         onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.backgroundColor = "#15394d"; }}
                         onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = BRAND; }}
                     >
-                        Cadastrar Cliente
+                        {enviando ? "Cadastrando..." : "Cadastrar Cliente"}
                     </button>
                 </div>
             </div>

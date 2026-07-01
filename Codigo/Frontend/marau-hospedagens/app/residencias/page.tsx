@@ -1,36 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import PageHeader from "@/components/PageHeader";
 import ResidenciaCard from "@/components/ResidenciaCard";
 import CadastrarResidenciaModal from "@/components/CadastrarResidenciaModal";
-
-const residencias = [
-    {
-        id: 1,
-        nome: "Casa Praiana",
-        endereco: "Rua das Amendoeiras, 42 · Barra Grande",
-        cep: "45520-000",
-        telefone: "(73) 98876-1234",
-        email: "casapraiana@email.com",
-        totalQuartos: 4,
-        disponiveis: 3,
-        ocupados: 1,
-        cor: "#1A4A5E",
-    },
-    {
-        id: 2,
-        nome: "Pousada do Mato",
-        endereco: "Alameda das Bromélias, 8 · Algodões",
-        cep: "45520-100",
-        telefone: "(73) 99001-5566",
-        email: "pousadamato@email.com",
-        totalQuartos: 6,
-        disponiveis: 3,
-        ocupados: 3,
-        cor: "#C0624A",
-    },
-];
+import { api, ApiError, type Residencia, type ResidenciaRequest } from "@/lib/api";
 
 function Toast({ onDone }: { onDone: () => void }) {
     const [visible, setVisible] = useState(false);
@@ -64,8 +38,36 @@ function Toast({ onDone }: { onDone: () => void }) {
 }
 
 export default function ResidenciasPage() {
+    const [residencias, setResidencias] = useState<Residencia[]>([]);
+    const [carregando, setCarregando] = useState(true);
+    const [erro, setErro] = useState<string | null>(null);
     const [modalAberto, setModalAberto] = useState(false);
     const [showToast, setShowToast] = useState(false);
+
+    const carregar = useCallback(async () => {
+        setCarregando(true);
+        setErro(null);
+        try {
+            setResidencias(await api.residencias.listar());
+        } catch (e) {
+            setErro(e instanceof ApiError ? e.message : "Erro ao carregar residências.");
+        } finally {
+            setCarregando(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        void (async () => {
+            await carregar();
+        })();
+    }, [carregar]);
+
+    async function handleCadastrar(req: ResidenciaRequest) {
+        await api.residencias.criar(req);
+        setModalAberto(false);
+        setShowToast(true);
+        carregar();
+    }
 
     return (
         <div className="flex-1 px-10 py-8 overflow-auto">
@@ -76,19 +78,29 @@ export default function ResidenciasPage() {
                 subtitulo="Gerencie as propriedades cadastradas no sistema"
                 botao={{ label: "Cadastrar Residência", onClick: () => setModalAberto(true) }}
             />
-            <div className="grid grid-cols-2 gap-6">
-                {residencias.map((r) => (
-                    <ResidenciaCard key={r.id} r={r} />
-                ))}
-            </div>
+
+            {erro && (
+                <div className="mb-6 px-4 py-3 rounded-xl text-sm" style={{ backgroundColor: "#FEF3F2", color: "#B91C1C" }}>
+                    {erro}
+                </div>
+            )}
+
+            {carregando ? (
+                <p className="text-sm text-gray-400">Carregando residências...</p>
+            ) : residencias.length === 0 ? (
+                <p className="text-sm text-gray-400">Nenhuma residência cadastrada ainda.</p>
+            ) : (
+                <div className="grid grid-cols-2 gap-6">
+                    {residencias.map((r) => (
+                        <ResidenciaCard key={r.id} r={r} />
+                    ))}
+                </div>
+            )}
 
             {modalAberto && (
                 <CadastrarResidenciaModal
                     onClose={() => setModalAberto(false)}
-                    onConfirm={() => {
-                        setModalAberto(false);
-                        setShowToast(true);
-                    }}
+                    onConfirm={handleCadastrar}
                 />
             )}
         </div>

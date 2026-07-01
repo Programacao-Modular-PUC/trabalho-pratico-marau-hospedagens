@@ -1,18 +1,4 @@
-type Comodidade = {
-    nome: string;
-    inclusa: boolean;
-};
-
-type Quarto = {
-    id: number;
-    nome: string;
-    residencia: string;
-    preco: number;
-    status: "disponivel" | "ocupado";
-    comodidades: Comodidade[];
-    descricao: string;
-    cor: string;
-};
+import type { Quarto } from "@/lib/api";
 
 export default function QuartoCard({ q }: { q: Quarto }) {
     const disponivel = q.status === "disponivel";

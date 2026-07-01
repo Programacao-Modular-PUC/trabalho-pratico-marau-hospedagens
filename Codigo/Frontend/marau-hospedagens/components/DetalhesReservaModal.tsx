@@ -1,19 +1,6 @@
 "use client";
 
-type StatusAluguel = "ocupado" | "reserva" | "concluido";
-
-type Aluguel = {
-    id: number;
-    cliente: string;
-    residencia: string;
-    quarto: string;
-    entrada: string;
-    saida: string;
-    diarias: number;
-    valorFinal: string;
-    status: StatusAluguel;
-    acaoLabel: string;
-};
+import type { Aluguel } from "@/lib/api";
 
 type Props = {
     aluguel: Aluguel;
@@ -32,7 +19,7 @@ function InfoItem({ label, value }: { label: string; value: string }) {
     );
 }
 
-function StatusBadge({ status }: { status: StatusAluguel }) {
+function StatusBadge({ status }: { status: Aluguel["status"] }) {
     const map = {
         ocupado:   { label: "OCUPADO",   bg: "#dcfce7", color: "#16a34a" },
         reserva:   { label: "RESERVA",   bg: "#dbeafe", color: "#2563eb" },

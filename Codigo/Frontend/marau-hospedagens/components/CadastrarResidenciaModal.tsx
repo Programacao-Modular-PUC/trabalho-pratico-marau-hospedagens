@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { ApiError, type ResidenciaRequest } from "@/lib/api";
 
 type Props = {
     onClose: () => void;
-    onConfirm: () => void;
+    onConfirm: (req: ResidenciaRequest) => Promise<void>;
 };
 
 const BRAND = "#1A4A5E";
@@ -17,37 +18,6 @@ const coresDisponiveis = [
     { label: "Cinza", value: "#4B5563" },
     { label: "Dourado", value: "#B07D2E" },
 ];
-
-function Toast({ onDone }: { onDone: () => void }) {
-    const [visible, setVisible] = useState(false);
-
-    useEffect(() => {
-        setTimeout(() => setVisible(true), 50);
-        setTimeout(() => setVisible(false), 3000);
-        setTimeout(() => onDone(), 3500);
-    }, []);
-
-    return (
-        <div
-            className="fixed top-6 right-6 z-[200] flex items-center gap-3 px-5 py-4 rounded-2xl shadow-lg transition-all duration-500"
-            style={{
-                backgroundColor: BRAND,
-                opacity: visible ? 1 : 0,
-                transform: visible ? "translateY(0)" : "translateY(-16px)",
-            }}
-        >
-            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
-                    <polyline points="20 6 9 17 4 12" />
-                </svg>
-            </div>
-            <div>
-                <p className="text-white font-semibold text-sm">Residência cadastrada!</p>
-                <p className="text-white/70 text-xs">A residência foi registrada com sucesso.</p>
-            </div>
-        </div>
-    );
-}
 
 function StepIndicator({ step }: { step: number }) {
     const steps = ["Identificação", "Localização & Contato"];
@@ -92,7 +62,6 @@ function StepIndicator({ step }: { step: number }) {
 
 export default function CadastrarResidenciaModal({ onClose, onConfirm }: Props) {
     const [step, setStep] = useState(1);
-    const [showToast, setShowToast] = useState(false);
 
     // Step 1
     const [nome, setNome] = useState("");
@@ -106,11 +75,30 @@ export default function CadastrarResidenciaModal({ onClose, onConfirm }: Props) 
     const [telefone, setTelefone] = useState("");
     const [email, setEmail] = useState("");
 
+    const [enviando, setEnviando] = useState(false);
+    const [erro, setErro] = useState<string | null>(null);
+
     const step1Valido = nome.trim() !== "";
     const step2Valido = endereco.trim() !== "" && numero.trim() !== "" && bairro.trim() !== "" && cep.trim() !== "" && telefone.trim() !== "" && email.trim() !== "";
 
-    const handleConfirmar = () => {
-        onConfirm();
+    const handleConfirmar = async () => {
+        setErro(null);
+        setEnviando(true);
+        try {
+            await onConfirm({
+                nome,
+                // O backend guarda endereço em um único campo; juntamos rua + número + bairro.
+                endereco: `${endereco}, ${numero} · ${bairro}`,
+                cep,
+                telefone,
+                email,
+                cor,
+            });
+        } catch (e) {
+            setErro(e instanceof ApiError ? e.message : "Erro ao cadastrar residência.");
+        } finally {
+            setEnviando(false);
+        }
     };
 
     const formatarCep = (v: string) => {
@@ -126,189 +114,193 @@ export default function CadastrarResidenciaModal({ onClose, onConfirm }: Props) 
 
     return (
         <>
-        {showToast && <Toast onDone={() => setShowToast(false)} />}
+            <div
+                className="fixed inset-0 z-50 flex items-center justify-center"
+                style={{ backgroundColor: "rgba(0,0,0,0.4)" }}
+                onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+            >
+                <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 overflow-hidden">
 
-        <div
-            className="fixed inset-0 z-50 flex items-center justify-center"
-            style={{ backgroundColor: "rgba(0,0,0,0.4)" }}
-            onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-        >
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 overflow-hidden">
+                    {/* Header */}
+                    <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+                        <h2 className="text-lg font-bold" style={{ color: BRAND }}>Cadastrar Residência</h2>
+                        <button onClick={onClose} className="text-gray-400 hover:text-gray-600 cursor-pointer transition-colors">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <line x1="18" y1="6" x2="6" y2="18" />
+                                <line x1="6" y1="6" x2="18" y2="18" />
+                            </svg>
+                        </button>
+                    </div>
 
-                {/* Header */}
-                <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
-                    <h2 className="text-lg font-bold" style={{ color: BRAND }}>Cadastrar Residência</h2>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 cursor-pointer transition-colors">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <line x1="18" y1="6" x2="6" y2="18" />
-                            <line x1="6" y1="6" x2="18" y2="18" />
-                        </svg>
-                    </button>
-                </div>
+                    {/* Corpo */}
+                    <div className="px-6 py-6">
+                        <StepIndicator step={step} />
 
-                {/* Corpo */}
-                <div className="px-6 py-6">
-                    <StepIndicator step={step} />
-
-                    {/* Step 1 — Identificação */}
-                    {step === 1 && (
-                        <div className="flex flex-col gap-5">
-                            <div>
-                                <label className="text-sm font-semibold text-gray-600 mb-1.5 block">Nome da residência</label>
-                                <input
-                                    type="text"
-                                    placeholder="Ex: Casa Praiana"
-                                    value={nome}
-                                    onChange={(e) => setNome(e.target.value)}
-                                    autoFocus
-                                    className="w-full border-2 rounded-xl px-4 py-2.5 text-sm outline-none"
-                                    style={{ borderColor: nome ? BRAND : "#e5e7eb" }}
-                                />
-                            </div>
-
-                            <div>
-                                <label className="text-sm font-semibold text-gray-600 mb-3 block">Cor do card</label>
-                                <div className="flex gap-3 flex-wrap">
-                                    {coresDisponiveis.map((c) => (
-                                        <button
-                                            key={c.value}
-                                            onClick={() => setCor(c.value)}
-                                            title={c.label}
-                                            className="w-9 h-9 rounded-full cursor-pointer transition-all"
-                                            style={{
-                                                backgroundColor: c.value,
-                                                outline: cor === c.value ? `3px solid ${c.value}` : "3px solid transparent",
-                                                outlineOffset: "3px",
-                                            }}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Preview do card */}
-                            {nome && (
-                                <div
-                                    className="rounded-xl px-5 py-4 mt-1 transition-all"
-                                    style={{ backgroundColor: cor }}
-                                >
-                                    <p className="text-white font-bold text-base">{nome}</p>
-                                    <p className="text-white/60 text-xs mt-0.5">Maraú · Bahia</p>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Step 2 — Localização & Contato */}
-                    {step === 2 && (
-                        <div className="flex flex-col gap-4">
-                            <div className="grid grid-cols-[1fr_80px] gap-3">
+                        {/* Step 1 — Identificação */}
+                        {step === 1 && (
+                            <div className="flex flex-col gap-5">
                                 <div>
-                                    <label className="text-sm font-semibold text-gray-600 mb-1.5 block">Endereço</label>
+                                    <label className="text-sm font-semibold text-gray-600 mb-1.5 block">Nome da residência</label>
                                     <input
                                         type="text"
-                                        placeholder="Ex: Rua das Amendoeiras"
-                                        value={endereco}
-                                        onChange={(e) => setEndereco(e.target.value)}
+                                        placeholder="Ex: Casa Praiana"
+                                        value={nome}
+                                        onChange={(e) => setNome(e.target.value)}
                                         autoFocus
                                         className="w-full border-2 rounded-xl px-4 py-2.5 text-sm outline-none"
-                                        style={{ borderColor: endereco ? BRAND : "#e5e7eb" }}
+                                        style={{ borderColor: nome ? BRAND : "#e5e7eb" }}
                                     />
                                 </div>
+
                                 <div>
-                                    <label className="text-sm font-semibold text-gray-600 mb-1.5 block">Número</label>
+                                    <label className="text-sm font-semibold text-gray-600 mb-3 block">Cor do card</label>
+                                    <div className="flex gap-3 flex-wrap">
+                                        {coresDisponiveis.map((c) => (
+                                            <button
+                                                key={c.value}
+                                                onClick={() => setCor(c.value)}
+                                                title={c.label}
+                                                className="w-9 h-9 rounded-full cursor-pointer transition-all"
+                                                style={{
+                                                    backgroundColor: c.value,
+                                                    outline: cor === c.value ? `3px solid ${c.value}` : "3px solid transparent",
+                                                    outlineOffset: "3px",
+                                                }}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Preview do card */}
+                                {nome && (
+                                    <div
+                                        className="rounded-xl px-5 py-4 mt-1 transition-all"
+                                        style={{ backgroundColor: cor }}
+                                    >
+                                        <p className="text-white font-bold text-base">{nome}</p>
+                                        <p className="text-white/60 text-xs mt-0.5">Maraú · Bahia</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Step 2 — Localização & Contato */}
+                        {step === 2 && (
+                            <div className="flex flex-col gap-4">
+                                <div className="grid grid-cols-[1fr_80px] gap-3">
+                                    <div>
+                                        <label className="text-sm font-semibold text-gray-600 mb-1.5 block">Endereço</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Ex: Rua das Amendoeiras"
+                                            value={endereco}
+                                            onChange={(e) => setEndereco(e.target.value)}
+                                            autoFocus
+                                            className="w-full border-2 rounded-xl px-4 py-2.5 text-sm outline-none"
+                                            style={{ borderColor: endereco ? BRAND : "#e5e7eb" }}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-sm font-semibold text-gray-600 mb-1.5 block">Número</label>
+                                        <input
+                                            type="text"
+                                            placeholder="42"
+                                            value={numero}
+                                            onChange={(e) => setNumero(e.target.value)}
+                                            className="w-full border-2 rounded-xl px-4 py-2.5 text-sm outline-none"
+                                            style={{ borderColor: numero ? BRAND : "#e5e7eb" }}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="text-sm font-semibold text-gray-600 mb-1.5 block">Bairro</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Ex: Barra Grande"
+                                            value={bairro}
+                                            onChange={(e) => setBairro(e.target.value)}
+                                            className="w-full border-2 rounded-xl px-4 py-2.5 text-sm outline-none"
+                                            style={{ borderColor: bairro ? BRAND : "#e5e7eb" }}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-sm font-semibold text-gray-600 mb-1.5 block">CEP</label>
+                                        <input
+                                            type="text"
+                                            placeholder="45520-000"
+                                            value={cep}
+                                            onChange={(e) => setCep(formatarCep(e.target.value))}
+                                            className="w-full border-2 rounded-xl px-4 py-2.5 text-sm outline-none"
+                                            style={{ borderColor: cep ? BRAND : "#e5e7eb" }}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="text-sm font-semibold text-gray-600 mb-1.5 block">Telefone</label>
                                     <input
                                         type="text"
-                                        placeholder="42"
-                                        value={numero}
-                                        onChange={(e) => setNumero(e.target.value)}
+                                        placeholder="(73) 98876-1234"
+                                        value={telefone}
+                                        onChange={(e) => setTelefone(formatarTelefone(e.target.value))}
                                         className="w-full border-2 rounded-xl px-4 py-2.5 text-sm outline-none"
-                                        style={{ borderColor: numero ? BRAND : "#e5e7eb" }}
+                                        style={{ borderColor: telefone ? BRAND : "#e5e7eb" }}
                                     />
                                 </div>
-                            </div>
 
-                            <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="text-sm font-semibold text-gray-600 mb-1.5 block">Bairro</label>
+                                    <label className="text-sm font-semibold text-gray-600 mb-1.5 block">Email</label>
                                     <input
-                                        type="text"
-                                        placeholder="Ex: Barra Grande"
-                                        value={bairro}
-                                        onChange={(e) => setBairro(e.target.value)}
+                                        type="email"
+                                        placeholder="Ex: casapraiana@email.com"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
                                         className="w-full border-2 rounded-xl px-4 py-2.5 text-sm outline-none"
-                                        style={{ borderColor: bairro ? BRAND : "#e5e7eb" }}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-sm font-semibold text-gray-600 mb-1.5 block">CEP</label>
-                                    <input
-                                        type="text"
-                                        placeholder="45520-000"
-                                        value={cep}
-                                        onChange={(e) => setCep(formatarCep(e.target.value))}
-                                        className="w-full border-2 rounded-xl px-4 py-2.5 text-sm outline-none"
-                                        style={{ borderColor: cep ? BRAND : "#e5e7eb" }}
+                                        style={{ borderColor: email ? BRAND : "#e5e7eb" }}
                                     />
                                 </div>
                             </div>
+                        )}
+                    </div>
 
-                            <div>
-                                <label className="text-sm font-semibold text-gray-600 mb-1.5 block">Telefone</label>
-                                <input
-                                    type="text"
-                                    placeholder="(73) 98876-1234"
-                                    value={telefone}
-                                    onChange={(e) => setTelefone(formatarTelefone(e.target.value))}
-                                    className="w-full border-2 rounded-xl px-4 py-2.5 text-sm outline-none"
-                                    style={{ borderColor: telefone ? BRAND : "#e5e7eb" }}
-                                />
-                            </div>
-
-                            <div>
-                                <label className="text-sm font-semibold text-gray-600 mb-1.5 block">Email</label>
-                                <input
-                                    type="email"
-                                    placeholder="Ex: casapraiana@email.com"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    className="w-full border-2 rounded-xl px-4 py-2.5 text-sm outline-none"
-                                    style={{ borderColor: email ? BRAND : "#e5e7eb" }}
-                                />
-                            </div>
+                    {erro && (
+                        <div className="mx-6 mb-3 px-4 py-2 rounded-xl text-sm" style={{ backgroundColor: "#FEF3F2", color: "#B91C1C" }}>
+                            {erro}
                         </div>
                     )}
-                </div>
 
-                {/* Footer */}
-                <div className="flex justify-between px-6 py-4 border-t border-gray-100">
-                    <button
-                        onClick={() => step === 1 ? onClose() : setStep(step - 1)}
-                        className="px-5 py-2.5 rounded-xl text-sm font-semibold border-2 cursor-pointer transition-all"
-                        style={{ borderColor: "#e5e7eb", color: "#6b7280" }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = "#e5e7eb";
-                            e.currentTarget.style.color = "white";
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = "transparent";
-                            e.currentTarget.style.color = "#6b7280";
-                        }}
-                    >
-                        {step === 1 ? "Cancelar" : "Voltar"}
-                    </button>
-                    <button
-                        onClick={() => step < 2 ? setStep(step + 1) : handleConfirmar()}
-                        disabled={step === 1 ? !step1Valido : !step2Valido}
-                        className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                        style={{ backgroundColor: BRAND }}
-                        onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.backgroundColor = "#15394d"; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = BRAND; }}
-                    >
-                        {step === 2 ? "Cadastrar Residência" : "Próximo"}
-                    </button>
+                    {/* Footer */}
+                    <div className="flex justify-between px-6 py-4 border-t border-gray-100">
+                        <button
+                            onClick={() => step === 1 ? onClose() : setStep(step - 1)}
+                            className="px-5 py-2.5 rounded-xl text-sm font-semibold border-2 cursor-pointer transition-all"
+                            style={{ borderColor: "#e5e7eb", color: "#6b7280" }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor = "#e5e7eb";
+                                e.currentTarget.style.color = "white";
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor = "transparent";
+                                e.currentTarget.style.color = "#6b7280";
+                            }}
+                        >
+                            {step === 1 ? "Cancelar" : "Voltar"}
+                        </button>
+                        <button
+                            onClick={() => step < 2 ? setStep(step + 1) : handleConfirmar()}
+                            disabled={(step === 1 ? !step1Valido : !step2Valido) || enviando}
+                            className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            style={{ backgroundColor: BRAND }}
+                            onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.backgroundColor = "#15394d"; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = BRAND; }}
+                        >
+                            {step === 2 ? (enviando ? "Cadastrando..." : "Cadastrar Residência") : "Próximo"}
+                        </button>
+                    </div>
                 </div>
             </div>
-        </div>
         </>
     );
 }
