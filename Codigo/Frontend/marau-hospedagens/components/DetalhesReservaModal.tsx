@@ -7,6 +7,7 @@ type Props = {
     aluguel: Aluguel;
     onClose: () => void;
     onCancelar: (id: number) => void;
+    onMarcarOcupado: (id: number) => void;
 };
 
 const BRAND = "#1A4A5E";
@@ -37,8 +38,9 @@ function StatusBadge({ status }: { status: Aluguel["status"] }) {
     );
 }
 
-export default function DetalhesReservaModal({ aluguel: a, onClose, onCancelar }: Props) {
+export default function DetalhesReservaModal({ aluguel: a, onClose, onCancelar, onMarcarOcupado }: Props) {
     const [confirmando, setConfirmando] = useState(false);
+    const [marcandoOcupado, setMarcandoOcupado] = useState(false);
 
     return (
         <div
@@ -129,21 +131,33 @@ export default function DetalhesReservaModal({ aluguel: a, onClose, onCancelar }
                                 </button>
                             </div>
                         ) : (
-                            <button
-                                onClick={() => setConfirmando(true)}
-                                className="px-5 py-2.5 rounded-xl text-sm font-semibold border-2 cursor-pointer transition-all"
-                                style={{ borderColor: "#EF4444", color: "#EF4444" }}
-                                onMouseEnter={(e) => {
-                                    e.currentTarget.style.backgroundColor = "#EF4444";
-                                    e.currentTarget.style.color = "white";
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.currentTarget.style.backgroundColor = "transparent";
-                                    e.currentTarget.style.color = "#EF4444";
-                                }}
-                            >
-                                Cancelar Reserva
-                            </button>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => { setMarcandoOcupado(true); onMarcarOcupado(a.id); }}
+                                    disabled={marcandoOcupado}
+                                    className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white cursor-pointer transition-all disabled:opacity-60"
+                                    style={{ backgroundColor: BRAND }}
+                                    onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.backgroundColor = "#15394d"; }}
+                                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = BRAND; }}
+                                >
+                                    {marcandoOcupado ? "Atualizando..." : "Marcar como Ocupado"}
+                                </button>
+                                <button
+                                    onClick={() => setConfirmando(true)}
+                                    className="px-5 py-2.5 rounded-xl text-sm font-semibold border-2 cursor-pointer transition-all"
+                                    style={{ borderColor: "#EF4444", color: "#EF4444" }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.backgroundColor = "#EF4444";
+                                        e.currentTarget.style.color = "white";
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.backgroundColor = "transparent";
+                                        e.currentTarget.style.color = "#EF4444";
+                                    }}
+                                >
+                                    Cancelar Reserva
+                                </button>
+                            </div>
                         )
                     )}
                     {!confirmando && (

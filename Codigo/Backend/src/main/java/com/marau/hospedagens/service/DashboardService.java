@@ -66,7 +66,7 @@ public class DashboardService {
                 .add(somarValores(aluguelRepository.findByStatus(StatusAluguel.RESERVA)));
 
         List<AluguelResponse> ultimasReservas = aluguelRepository.findAll().stream()
-                .sorted(Comparator.comparing(Aluguel::getEntrada,
+                .sorted(Comparator.comparing(Aluguel::getId,
                         Comparator.nullsLast(Comparator.reverseOrder())))
                 .limit(LIMITE_ULTIMAS_RESERVAS)
                 .map(aluguelService::toResponse)

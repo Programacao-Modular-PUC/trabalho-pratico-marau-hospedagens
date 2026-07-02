@@ -170,6 +170,16 @@ export default function AlugueisPage() {
         }
     }
 
+    async function handleMarcarOcupado(id: number) {
+        try {
+            const atualizado = await api.alugueis.atualizarStatus(id, "Ocupado");
+            setAlugueis((prev) => prev.map((a) => (a.id === id ? atualizado : a)));
+            setAluguelSelecionado(atualizado);
+        } catch (e) {
+            setErro(e instanceof ApiError ? e.message : "Erro ao atualizar status da reserva.");
+        }
+    }
+
     return (
         <div className="px-10 py-8">
             {showToast && <Toast onDone={() => setShowToast(false)} />}
@@ -238,10 +248,7 @@ export default function AlugueisPage() {
                     aluguel={aluguelSelecionado}
                     onClose={() => setAluguelSelecionado(null)}
                     onCancelar={handleCancelar}
-                    onAtualizar={(atualizado) => {
-                        setAlugueis((prev) => prev.map((item) => item.id === atualizado.id ? atualizado : item));
-                        setAluguelSelecionado(atualizado);
-                    }}
+                    onMarcarOcupado={handleMarcarOcupado}
                 />
             )}
         </div>
