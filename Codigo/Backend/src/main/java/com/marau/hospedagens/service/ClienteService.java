@@ -130,7 +130,6 @@ public class ClienteService {
                 c.getTelefone(),
                 c.getEndereco(),
                 ultimaHospedagem,
-                statusTipo
-        );
+                statusTipo);
     }
 }

@@ -31,8 +31,8 @@ public class AluguelService {
     private final QuartoService quartoService;
 
     public AluguelService(AluguelRepository aluguelRepository,
-                          ClienteRepository clienteRepository,
-                          QuartoService quartoService) {
+            ClienteRepository clienteRepository,
+            QuartoService quartoService) {
         this.aluguelRepository = aluguelRepository;
         this.clienteRepository = clienteRepository;
         this.quartoService = quartoService;
@@ -125,7 +125,9 @@ public class AluguelService {
         return toResponse(aluguelRepository.save(aluguel));
     }
 
-    /** Botao "Cancelar" do modal de detalhes: remove a reserva e libera o quarto. */
+    /**
+     * Botao "Cancelar" do modal de detalhes: remove a reserva e libera o quarto.
+     */
     @Transactional
     public void cancelar(Long id) {
         Aluguel aluguel = buscarEntidade(id);
@@ -150,8 +152,10 @@ public class AluguelService {
     }
 
     private void validarDisponibilidade(Long quartoId, AluguelRequest req, Long idIgnorar) {
-        List<Aluguel> conflitos = aluguelRepository.findOverlappingByQuartoIdAndPeriod(quartoId, req.entrada(), req.saida());
-        boolean existeConflito = conflitos.stream().anyMatch(aluguel -> idIgnorar == null || !idIgnorar.equals(aluguel.getId()));
+        List<Aluguel> conflitos = aluguelRepository.findOverlappingByQuartoIdAndPeriod(quartoId, req.entrada(),
+                req.saida());
+        boolean existeConflito = conflitos.stream()
+                .anyMatch(aluguel -> idIgnorar == null || !idIgnorar.equals(aluguel.getId()));
         if (existeConflito) {
             throw new QuartoIndisponivelException("O quarto já está reservado para parte do período informado");
         }
@@ -163,7 +167,8 @@ public class AluguelService {
     }
 
     private void sincronizarQuarto(Quarto quarto, StatusAluguel status) {
-        if (quarto == null) return;
+        if (quarto == null)
+            return;
         if (status == StatusAluguel.OCUPADO) {
             quarto.setStatus(StatusQuarto.OCUPADO);
         } else if (status == StatusAluguel.CONCLUIDO) {
@@ -188,7 +193,6 @@ public class AluguelService {
                 a.getDiarias() != null ? a.getDiarias() : 0,
                 CurrencyUtil.formatBRL(a.getValorFinal()),
                 a.getStatus().name().toLowerCase(),
-                acaoLabel
-        );
+                acaoLabel);
     }
 }

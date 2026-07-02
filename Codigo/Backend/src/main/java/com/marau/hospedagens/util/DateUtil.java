@@ -11,16 +11,16 @@ public final class DateUtil {
     private DateUtil() {
     }
 
-    /** Ex: 17/04 12:00  (usado nas tabelas de alugueis). */
+    /** Ex: 17/04 12:00 (usado nas tabelas de alugueis). */
     public static final DateTimeFormatter TABELA = DateTimeFormatter.ofPattern("dd/MM HH:mm");
 
-    /** Ex: 17/04/2025  (data do recibo). */
+    /** Ex: 17/04/2025 (data do recibo). */
     public static final DateTimeFormatter DATA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
-    /** Ex: 12:00  (hora do recibo). */
+    /** Ex: 12:00 (hora do recibo). */
     public static final DateTimeFormatter HORA = DateTimeFormatter.ofPattern("HH:mm");
 
-    /** Ex: 16/04/2025 as 08:45  (emissao do recibo). */
+    /** Ex: 16/04/2025 as 08:45 (emissao do recibo). */
     public static final DateTimeFormatter EMISSAO = DateTimeFormatter.ofPattern("dd/MM/yyyy 'as' HH:mm");
 
     public static String tabela(LocalDateTime dt) {

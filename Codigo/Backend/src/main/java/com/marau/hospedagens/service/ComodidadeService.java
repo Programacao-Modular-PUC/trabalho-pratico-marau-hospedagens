@@ -66,7 +66,6 @@ public class ComodidadeService {
                 c.getId(),
                 c.getNome(),
                 c.getPreco(),
-                CurrencyUtil.formatBRL(c.getPreco())
-        );
+                CurrencyUtil.formatBRL(c.getPreco()));
     }
 }
