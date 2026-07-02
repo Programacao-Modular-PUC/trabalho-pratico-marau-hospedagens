@@ -5,6 +5,7 @@ import PageHeader from "@/components/PageHeader";
 import MetricCard from "@/components/MetricCard";
 import HistoryTimeline, { type HistoryEntry } from "@/components/HistoryTimeline";
 import AvailabilityCalendar from "@/components/AvailabilityCalendar";
+import RevenueChart from "@/components/RevenueChart";
 import NovaReservaModal from "@/components/NovaReservaModal";
 import { api, ApiError, type DashboardResumo } from "@/lib/api";
 
@@ -74,8 +75,9 @@ export default function DashboardPage() {
     const history: HistoryEntry[] = (resumo?.ultimasReservas ?? []).map((a) => ({
         id: a.id,
         date: a.entrada.split(" ")[0] ?? "",
-        time: a.entrada.split(" ")[1] ?? "",
-        text: `${a.cliente} · ${a.residencia} · ${a.quarto} (${a.status.toUpperCase()})`,
+        cliente: a.cliente,
+        local: `${a.residencia} · ${a.quarto}`,
+        status: a.status,
     }));
 
     function handleRangeSelect(entrada: string, saida: string) {
@@ -111,25 +113,34 @@ export default function DashboardPage() {
             <div className="grid grid-cols-4 gap-4 mb-8">
                 <MetricCard label="Residências"      value={resumo?.totalResidencias ?? 0}    sub="cadastradas"    borderColor="#1C4B60" valueColor="#1C4B60" />
                 <MetricCard label="Quartos Ocupados" value={resumo?.quartosOcupados ?? 0}    sub={`de ${resumo?.totalQuartos ?? 0} no total`} borderColor="#C23E23" valueColor="#C23E23" />
-                <MetricCard label="Receita do Mês"   value={resumo ? parseValorBRL(resumo.receitaTotal) : 0} sub={`${resumo?.estadiasConcluidas ?? 0} aluguéis`}    borderColor="#47977B" valueColor="#47977B" prefix="R$ " decimals={2} />
+                <MetricCard label="Receita Total"   value={resumo ? parseValorBRL(resumo.receitaTotal) : 0} sub={`${resumo?.estadiasConcluidas ?? 0} aluguéis`}    borderColor="#47977B" valueColor="#47977B" prefix="R$ " decimals={2} />
                 <MetricCard label="Clientes"         value={resumo?.totalClientes ?? 0}   sub="cadastrados"    borderColor="#4EA3B8" valueColor="#38bdf8" />
             </div>
 
-            <div className="grid grid-cols-[600px_1fr] gap-16">
+            {/* Calendário em destaque + gráfico compacto ao lado */}
+            <div className="grid grid-cols-[600px_1fr] gap-16 mb-10">
                 <div>
                     <h2 className="text-base font-semibold text-gray-700 mb-3">Disponibilidade</h2>
                     <AvailabilityCalendar onRangeSelect={handleRangeSelect}
                                           onResidenciaChange={setResidenciaInicial}
                                           onQuartoChange={setQuartoInicial}/>
                 </div>
-                <div>
-                    <h2 className="text-base font-semibold text-gray-700 mb-4">Últimas Reservas</h2>
-                    {history.length === 0 ? (
-                        <p className="text-sm text-gray-400">Nenhuma reserva registrada ainda.</p>
-                    ) : (
-                        <HistoryTimeline entries={history} />
-                    )}
+                <div className="flex flex-col h-full">
+                    <h2 className="text-base font-semibold text-gray-700 mb-3">Receita por Mês</h2>
+                    <div className="bg-white rounded-2xl shadow-sm p-5 flex-1">
+                        <RevenueChart />
+                    </div>
                 </div>
+            </div>
+
+            {/* Últimas reservas — largura total, abaixo */}
+            <div>
+                <h2 className="text-base font-semibold text-gray-700 mb-4">Últimas Reservas</h2>
+                {history.length === 0 ? (
+                    <p className="text-sm text-gray-400">Nenhuma reserva registrada ainda.</p>
+                ) : (
+                    <HistoryTimeline entries={history} />
+                )}
             </div>
 
             {modalAberto && (

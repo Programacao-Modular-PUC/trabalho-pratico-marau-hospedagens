@@ -1,13 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { api, ApiError, type Aluguel } from "@/lib/api";
+import type { Aluguel } from "@/lib/api";
 
 type Props = {
     aluguel: Aluguel;
     onClose: () => void;
     onCancelar: (id: number) => void;
-    onAtualizar?: (aluguel: Aluguel) => void;
 };
 
 const BRAND = "#1A4A5E";
@@ -38,29 +37,8 @@ function StatusBadge({ status }: { status: Aluguel["status"] }) {
     );
 }
 
-export default function DetalhesReservaModal({ aluguel: a, onClose, onCancelar, onAtualizar }: Props) {
-    const [processando, setProcessando] = useState(false);
-    const [erro, setErro] = useState<string | null>(null);
-
-    async function handleAvancarStatus() {
-        if (!a) return;
-        setProcessando(true);
-        setErro(null);
-        try {
-            const proximoStatus = a.status === "reserva" ? "ocupado" : a.status === "ocupado" ? "concluido" : "concluido";
-            const atualizado = await api.alugueis.atualizarStatus(a.id, proximoStatus);
-            onAtualizar?.({ ...a, ...atualizado, status: atualizado.status as Aluguel["status"] });
-            onClose();
-        } catch (e) {
-            setErro(e instanceof ApiError ? e.message : "Erro ao atualizar o status da reserva.");
-        } finally {
-            setProcessando(false);
-        }
-    }
-
-    function handleAbrirRecibo() {
-        window.open(`/recibo?id=${a.id}`, "_blank", "noopener,noreferrer");
-    }
+export default function DetalhesReservaModal({ aluguel: a, onClose, onCancelar }: Props) {
+    const [confirmando, setConfirmando] = useState(false);
 
     return (
         <div
@@ -104,12 +82,6 @@ export default function DetalhesReservaModal({ aluguel: a, onClose, onCancelar, 
                     <InfoItem label="Valor Total" value={a.valorFinal} />
                 </div>
 
-                {erro && (
-                    <div className="mx-6 mb-4 px-4 py-3 rounded-xl text-sm" style={{ backgroundColor: "#FEF3F2", color: "#B91C1C" }}>
-                        {erro}
-                    </div>
-                )}
-
                 {/* Aviso cancelamento — só para reservas */}
                 {a.status === "reserva" && (
                     <div
@@ -121,47 +93,70 @@ export default function DetalhesReservaModal({ aluguel: a, onClose, onCancelar, 
                             <line x1="12" y1="8" x2="12" y2="12" />
                             <line x1="12" y1="16" x2="12.01" y2="16" />
                         </svg>
-                        <span>Ao cancelar, a reserva será removida e o quarto voltará a ficar disponível.</span>
+                        <span>
+                            {confirmando
+                                ? "Tem certeza? Essa ação não pode ser desfeita."
+                                : "Ao cancelar, a reserva será removida e o quarto voltará a ficar disponível."}
+                        </span>
                     </div>
                 )}
 
                 {/* Footer */}
-                <div className="flex flex-wrap px-6 py-4 border-t border-gray-100 gap-3 justify-end">
-                    {a.status !== "concluido" && (
-                        <button
-                            onClick={handleAvancarStatus}
-                            disabled={processando}
-                            className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white cursor-pointer transition-colors disabled:opacity-50"
-                            style={{ backgroundColor: BRAND }}
-                        >
-                            {processando ? "Processando..." : a.status === "reserva" ? "Marcar como Ocupado" : "Finalizar Estadia"}
-                        </button>
-                    )}
-                    {a.status === "concluido" && (
-                        <button
-                            onClick={handleAbrirRecibo}
-                            className="px-5 py-2.5 rounded-xl text-sm font-semibold border-2 cursor-pointer transition-all"
-                            style={{ borderColor: BRAND, color: BRAND }}
-                        >
-                            Abrir Recibo
-                        </button>
-                    )}
+                <div
+                    className="flex px-6 py-4 border-t border-gray-100 gap-3"
+                    style={{ justifyContent: a.status === "reserva" ? "space-between" : "flex-end" }}
+                >
                     {a.status === "reserva" && (
+                        confirmando ? (
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setConfirmando(false)}
+                                    className="px-5 py-2.5 rounded-xl text-sm font-semibold border-2 cursor-pointer transition-all"
+                                    style={{ borderColor: "#e5e7eb", color: "#6b7280" }}
+                                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#e5e7eb"; e.currentTarget.style.color = "white"; }}
+                                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = "#6b7280"; }}
+                                >
+                                    Voltar
+                                </button>
+                                <button
+                                    onClick={() => onCancelar(a.id)}
+                                    className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white cursor-pointer transition-all"
+                                    style={{ backgroundColor: "#EF4444" }}
+                                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#dc2626"; }}
+                                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "#EF4444"; }}
+                                >
+                                    Sim, cancelar
+                                </button>
+                            </div>
+                        ) : (
+                            <button
+                                onClick={() => setConfirmando(true)}
+                                className="px-5 py-2.5 rounded-xl text-sm font-semibold border-2 cursor-pointer transition-all"
+                                style={{ borderColor: "#EF4444", color: "#EF4444" }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = "#EF4444";
+                                    e.currentTarget.style.color = "white";
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = "transparent";
+                                    e.currentTarget.style.color = "#EF4444";
+                                }}
+                            >
+                                Cancelar Reserva
+                            </button>
+                        )
+                    )}
+                    {!confirmando && (
                         <button
-                            onClick={() => onCancelar(a.id)}
-                            className="px-5 py-2.5 rounded-xl text-sm font-semibold border-2 cursor-pointer transition-all"
-                            style={{ borderColor: "#EF4444", color: "#EF4444" }}
+                            onClick={onClose}
+                            className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white cursor-pointer transition-colors"
+                            style={{ backgroundColor: BRAND }}
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#15394d"; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = BRAND; }}
                         >
-                            Cancelar Reserva
+                            Fechar
                         </button>
                     )}
-                    <button
-                        onClick={onClose}
-                        className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white cursor-pointer transition-colors"
-                        style={{ backgroundColor: BRAND }}
-                    >
-                        Fechar
-                    </button>
                 </div>
             </div>
         </div>

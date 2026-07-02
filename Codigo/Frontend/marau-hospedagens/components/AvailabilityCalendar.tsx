@@ -124,16 +124,15 @@ export default function AvailabilityCalendar({ onRangeSelect, onResidenciaChange
     );
 
     const carregarOcupacao = useCallback(() => {
-        if (!quartoAtualObj) {
-            setAlugueis([]);
-            return;
-        }
-        api.alugueis.listar(residenciaSelecionada)
-            .then((lista) => setAlugueis(lista.filter((a) =>
-                a.quartoId === quartoAtualObj.id && (a.status === "reserva" || a.status === "ocupado")
-            )))
+        api.alugueis.listar()
+            .then((lista) => {
+                const relevantes = lista.filter((a) => a.status === "reserva" || a.status === "ocupado");
+                // Sem quarto selecionado: mostra a ocupação de TODOS os quartos.
+                // Com quarto selecionado: filtra só pra ele.
+                setAlugueis(quartoAtualObj ? relevantes.filter((a) => a.quartoId === quartoAtualObj.id) : relevantes);
+            })
             .catch(() => setAlugueis([]));
-    }, [quartoAtualObj, residenciaSelecionada]);
+    }, [quartoAtualObj]);
 
     useEffect(() => {
         void (async () => {
@@ -359,8 +358,8 @@ export default function AvailabilityCalendar({ onRangeSelect, onResidenciaChange
                     {!residenciaSelecionada || !quartoSelecionado ? (
                         <span className="text-gray-400">
                             {!residenciaSelecionada
-                                ? "Selecione uma residência e um quarto para ver a disponibilidade"
-                                : "Selecione um quarto para ver a disponibilidade"}
+                                ? "Mostrando ocupação de todos os quartos — selecione uma residência e um quarto para reservar"
+                                : "Selecione um quarto para reservar"}
                         </span>
                     ) : !dataInicio ? (
                         "Clique em um dia para selecionar a entrada"

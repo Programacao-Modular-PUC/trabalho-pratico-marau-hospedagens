@@ -99,8 +99,7 @@ export default function Sidebar() {
                         <Link
                             key={item.href}
                             href={item.href}
-                            className={`flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium transition-all duration-150 ${isActive ? "shadow-md" : ""}`}
-                            style={
+                            className={`flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium transition-all duration-150 cursor-pointer ${isActive ? "shadow-md" : ""}`}                            style={
                                 isActive
                                     ? { backgroundColor: BRAND, color: "white" }
                                     : { color: "#6b7280" }

@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ApiError, type Residencia, type ResidenciaRequest } from "@/lib/api";
 
 type Props = {
     onClose: () => void;
     onConfirm: (req: ResidenciaRequest) => Promise<void>;
-    residenciaInicial?: Residencia;
+    residenciaEditando?: Residencia;
 };
 
 const BRAND = "#1A4A5E";
@@ -19,6 +19,22 @@ const coresDisponiveis = [
     { label: "Cinza", value: "#4B5563" },
     { label: "Dourado", value: "#B07D2E" },
 ];
+
+// Desmonta "Rua X, 42 · Bairro" de volta em rua/número/bairro (formato que
+// este mesmo modal gera ao cadastrar). Se o endereço não seguir esse padrão
+// (ex: veio de outro lugar), cai tudo no campo "endereço" pro usuário ajustar.
+function parseEndereco(enderecoCompleto: string) {
+    const partes = enderecoCompleto.split(" · ");
+    if (partes.length === 2) {
+        const [ruaNumero, bairro] = partes;
+        const idx = ruaNumero.lastIndexOf(", ");
+        if (idx !== -1) {
+            return { endereco: ruaNumero.slice(0, idx), numero: ruaNumero.slice(idx + 2), bairro };
+        }
+        return { endereco: ruaNumero, numero: "", bairro };
+    }
+    return { endereco: enderecoCompleto, numero: "", bairro: "" };
+}
 
 function StepIndicator({ step }: { step: number }) {
     const steps = ["Identificação", "Localização & Contato"];
@@ -61,36 +77,26 @@ function StepIndicator({ step }: { step: number }) {
     );
 }
 
-export default function CadastrarResidenciaModal({ onClose, onConfirm, residenciaInicial }: Props) {
+export default function CadastrarResidenciaModal({ onClose, onConfirm, residenciaEditando }: Props) {
+    const modoEdicao = !!residenciaEditando;
+    const enderecoInicial = residenciaEditando ? parseEndereco(residenciaEditando.endereco) : { endereco: "", numero: "", bairro: "" };
+
     const [step, setStep] = useState(1);
 
     // Step 1
-    const [nome, setNome] = useState("");
-    const [cor, setCor] = useState(coresDisponiveis[0].value);
+    const [nome, setNome] = useState(residenciaEditando?.nome ?? "");
+    const [cor, setCor] = useState(residenciaEditando?.cor ?? coresDisponiveis[0].value);
 
     // Step 2
-    const [endereco, setEndereco] = useState("");
-    const [numero, setNumero] = useState("");
-    const [bairro, setBairro] = useState("");
-    const [cep, setCep] = useState("");
-    const [telefone, setTelefone] = useState("");
-    const [email, setEmail] = useState("");
+    const [endereco, setEndereco] = useState(enderecoInicial.endereco);
+    const [numero, setNumero] = useState(enderecoInicial.numero);
+    const [bairro, setBairro] = useState(enderecoInicial.bairro);
+    const [cep, setCep] = useState(residenciaEditando?.cep ?? "");
+    const [telefone, setTelefone] = useState(residenciaEditando?.telefone ?? "");
+    const [email, setEmail] = useState(residenciaEditando?.email ?? "");
 
     const [enviando, setEnviando] = useState(false);
     const [erro, setErro] = useState<string | null>(null);
-
-    useEffect(() => {
-        if (residenciaInicial) {
-            setNome(residenciaInicial.nome ?? "");
-            setCor(residenciaInicial.cor ?? coresDisponiveis[0].value);
-            setEndereco(residenciaInicial.endereco?.split(",")[0] ?? "");
-            setNumero(residenciaInicial.endereco?.match(/,(.*?)·/)?.[1]?.trim() ?? "");
-            setBairro(residenciaInicial.endereco?.split("·")[1]?.trim() ?? "");
-            setCep(residenciaInicial.cep ?? "");
-            setTelefone(residenciaInicial.telefone ?? "");
-            setEmail(residenciaInicial.email ?? "");
-        }
-    }, [residenciaInicial]);
 
     const step1Valido = nome.trim() !== "";
     const step2Valido = endereco.trim() !== "" && numero.trim() !== "" && bairro.trim() !== "" && cep.trim() !== "" && telefone.trim() !== "" && email.trim() !== "";
@@ -109,7 +115,7 @@ export default function CadastrarResidenciaModal({ onClose, onConfirm, residenci
                 cor,
             });
         } catch (e) {
-            setErro(e instanceof ApiError ? e.message : "Erro ao cadastrar residência.");
+            setErro(e instanceof ApiError ? e.message : `Erro ao ${modoEdicao ? "salvar" : "cadastrar"} residência.`);
         } finally {
             setEnviando(false);
         }
@@ -137,7 +143,9 @@ export default function CadastrarResidenciaModal({ onClose, onConfirm, residenci
 
                     {/* Header */}
                     <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
-                        <h2 className="text-lg font-bold" style={{ color: BRAND }}>{residenciaInicial ? "Editar Residência" : "Cadastrar Residência"}</h2>
+                        <h2 className="text-lg font-bold" style={{ color: BRAND }}>
+                            {modoEdicao ? "Editar Residência" : "Cadastrar Residência"}
+                        </h2>
                         <button onClick={onClose} className="text-gray-400 hover:text-gray-600 cursor-pointer transition-colors">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                 <line x1="18" y1="6" x2="6" y2="18" />
@@ -310,7 +318,7 @@ export default function CadastrarResidenciaModal({ onClose, onConfirm, residenci
                             onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.backgroundColor = "#15394d"; }}
                             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = BRAND; }}
                         >
-                            {step === 2 ? (enviando ? (residenciaInicial ? "Salvando..." : "Cadastrando...") : (residenciaInicial ? "Salvar Alterações" : "Cadastrar Residência")) : "Próximo"}
+                            {step === 2 ? (enviando ? "Salvando..." : modoEdicao ? "Salvar Alterações" : "Cadastrar Residência") : "Próximo"}
                         </button>
                     </div>
                 </div>
