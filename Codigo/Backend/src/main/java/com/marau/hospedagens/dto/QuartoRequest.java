@@ -16,6 +16,12 @@ public record QuartoRequest(
         String status,
         String cor,
         @NotNull(message = "A residencia e obrigatoria") Long residenciaId,
-        List<Long> comodidadeIds
+        List<Long> comodidadeIds,
+        Integer numCamas,
+        Boolean temBerco,
+        BigDecimal taxaBerco,
+        BigDecimal adicionalCamaExtra,
+        BigDecimal percentualHospede,
+        Integer numeroHospedes
 ) {
 }
