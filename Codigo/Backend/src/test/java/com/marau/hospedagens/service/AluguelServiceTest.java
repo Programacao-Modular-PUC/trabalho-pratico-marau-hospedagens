@@ -1,6 +1,7 @@
 package com.marau.hospedagens.service;
 
 import com.marau.hospedagens.dto.AluguelRequest;
+import com.marau.hospedagens.exception.QuartoIndisponivelException;
 import com.marau.hospedagens.model.Aluguel;
 import com.marau.hospedagens.model.Cliente;
 import com.marau.hospedagens.model.Comodidade;
@@ -26,6 +27,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -155,5 +157,53 @@ class AluguelServiceTest {
         assertEquals(1, aluguelSalvo.getDiarias());
         assertEquals(0, new BigDecimal("95.00").compareTo(aluguelSalvo.getPrecoDiaria()));
         assertEquals(0, new BigDecimal("95.00").compareTo(aluguelSalvo.getValorFinal()));
+    }
+
+    @Test
+    @DisplayName("Criar reserva com periodo sobreposto lança exceção de quarto indisponível")
+    void criarReserva_periodoSobreposto_lancaExcecaoDeQuartoIndisponivel() {
+        Cliente cliente = Cliente.builder().id(1L).nome("Ana Lima").cpf("12345678901").build();
+        Quarto quarto = Quarto.builder()
+                .id(3L)
+                .tipo(TipoQuarto.INDIVIDUAL)
+                .valorBase(new BigDecimal("100.00"))
+                .build();
+
+        Aluguel aluguelExistente = Aluguel.builder()
+                .id(10L)
+                .quarto(quarto)
+                .entrada(LocalDateTime.of(2025, 6, 1, 12, 0))
+                .saida(LocalDateTime.of(2025, 6, 5, 12, 0))
+                .status(com.marau.hospedagens.model.enums.StatusAluguel.RESERVA)
+                .build();
+
+        when(clienteRepository.findById(1L)).thenReturn(Optional.of(cliente));
+        when(quartoService.buscarEntidade(3L)).thenReturn(quarto);
+        when(aluguelRepository.findOverlappingByQuartoIdAndPeriod(3L,
+                LocalDateTime.of(2025, 6, 3, 12, 0),
+                LocalDateTime.of(2025, 6, 7, 12, 0))).thenReturn(java.util.List.of(aluguelExistente));
+
+        AluguelRequest request = new AluguelRequest(
+                1L,
+                3L,
+                LocalDateTime.of(2025, 6, 3, 12, 0),
+                LocalDateTime.of(2025, 6, 7, 12, 0),
+                "reserva"
+        );
+
+        assertThrows(QuartoIndisponivelException.class, () -> aluguelService.criar(request));
+    }
+
+    @Test
+    @DisplayName("Quarto individual com cama extra aplica adicional por cama extra")
+    void quartoIndividual_comCamaExtra_aplicaAdicionalPorCamaExtra() {
+        Quarto quarto = Quarto.builder()
+                .tipo(TipoQuarto.INDIVIDUAL)
+                .valorBase(new BigDecimal("100.00"))
+                .numCamas(3)
+                .adicionalCamaExtra(new BigDecimal("20.00"))
+                .build();
+
+        assertEquals(0, new BigDecimal("140.00").compareTo(quarto.getPreco()));
     }
 }
