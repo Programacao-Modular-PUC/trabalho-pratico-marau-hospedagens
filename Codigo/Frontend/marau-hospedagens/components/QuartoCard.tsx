@@ -3,6 +3,7 @@
 import { useState } from "react";
 import EditarQuartoModal from "@/components/EditarQuartoModal";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import ConferirDisponibilidadeModal from "@/components/ConferirDisponibilidadeModal";
 import { api, ApiError, type Quarto } from "@/lib/api";
 
 type Props = {
@@ -14,6 +15,7 @@ export default function QuartoCard({ q, onChanged }: Props) {
     const disponivel = q.status === "disponivel";
 
     const [modalEdicao, setModalEdicao] = useState(false);
+    const [modalDisponibilidade, setModalDisponibilidade] = useState(false);
     const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
     const [excluindo, setExcluindo] = useState(false);
     const [erroExclusao, setErroExclusao] = useState<string | null>(null);
@@ -96,6 +98,7 @@ export default function QuartoCard({ q, onChanged }: Props) {
                 {/* Ações */}
                 <div className="flex justify-end gap-2 pt-1">
                     <button
+                        onClick={() => setModalDisponibilidade(true)}
                         className="px-5 py-2 rounded-xl text-sm font-semibold border-2 transition-colors cursor-pointer"
                         style={{ borderColor: "#1A4A5E", color: "#1A4A5E" }}
                         onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#1A4A5E"; e.currentTarget.style.color = "white"; }}
@@ -133,6 +136,14 @@ export default function QuartoCard({ q, onChanged }: Props) {
                     </button>
                 </div>
             </div>
+
+            {modalDisponibilidade && (
+                <ConferirDisponibilidadeModal
+                    quarto={q}
+                    onClose={() => setModalDisponibilidade(false)}
+                    onReservado={() => { setModalDisponibilidade(false); onChanged(); }}
+                />
+            )}
 
             {modalEdicao && (
                 <EditarQuartoModal

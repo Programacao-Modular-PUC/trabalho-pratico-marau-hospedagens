@@ -3,6 +3,7 @@
 import PageHeader from "@/components/PageHeader";
 import { useState, useEffect, useCallback } from "react";
 import DetalhesReservaModal from "@/components/DetalhesReservaModal";
+import ReciboModal from "@/components/ReciboModal";
 import { api, ApiError, type Aluguel, type Residencia } from "@/lib/api";
 
 const COLS = "1.4fr 1fr 1fr 1fr 0.6fr 1fr 1fr 0.6fr";
@@ -60,9 +61,10 @@ function StatusBadge({ status }: { status: Aluguel["status"] }) {
 type TabelaProps = {
     itens: Aluguel[];
     onVerDetalhes: (a: Aluguel) => void;
+    onVerRecibo: (a: Aluguel) => void;
 };
 
-function TabelaAlugueis({ itens, onVerDetalhes }: TabelaProps) {
+function TabelaAlugueis({ itens, onVerDetalhes, onVerRecibo }: TabelaProps) {
     if (itens.length === 0) {
         return (
             <p className="text-sm text-gray-400 px-6 py-6">Nenhum aluguel encontrado.</p>
@@ -103,7 +105,7 @@ function TabelaAlugueis({ itens, onVerDetalhes }: TabelaProps) {
                         style={{ borderColor: BRAND, color: BRAND }}
                         onClick={() => {
                             if (a.acaoLabel === "Recibo") {
-                                window.open(`/recibo?id=${a.id}`, "_blank");
+                                onVerRecibo(a);
                             } else {
                                 onVerDetalhes(a);
                             }
@@ -133,6 +135,7 @@ export default function AlugueisPage() {
     const [residenciaSelecionada, setResidenciaSelecionada] = useState("Todas");
     const [aluguelSelecionado, setAluguelSelecionado] = useState<Aluguel | null>(null);
     const [showToast, setShowToast] = useState(false);
+    const [aluguelRecibo, setAluguelRecibo] = useState<Aluguel | null>(null);
 
     const carregar = useCallback(async () => {
         setCarregando(true);
@@ -167,6 +170,16 @@ export default function AlugueisPage() {
             setShowToast(true);
         } catch (e) {
             setErro(e instanceof ApiError ? e.message : "Erro ao cancelar reserva.");
+        }
+    }
+
+    async function handleMarcarOcupado(id: number) {
+        try {
+            const atualizado = await api.alugueis.atualizarStatus(id, "Ocupado");
+            setAlugueis((prev) => prev.map((a) => (a.id === id ? atualizado : a)));
+            setAluguelSelecionado(atualizado);
+        } catch (e) {
+            setErro(e instanceof ApiError ? e.message : "Erro ao atualizar status da reserva.");
         }
     }
 
@@ -227,6 +240,7 @@ export default function AlugueisPage() {
                                 <TabelaAlugueis
                                     itens={aluguelFiltrado(residencia)}
                                     onVerDetalhes={setAluguelSelecionado}
+                                    onVerRecibo={setAluguelRecibo}
                                 />
                             </div>
                         ))}
@@ -238,10 +252,14 @@ export default function AlugueisPage() {
                     aluguel={aluguelSelecionado}
                     onClose={() => setAluguelSelecionado(null)}
                     onCancelar={handleCancelar}
-                    onAtualizar={(atualizado) => {
-                        setAlugueis((prev) => prev.map((item) => item.id === atualizado.id ? atualizado : item));
-                        setAluguelSelecionado(atualizado);
-                    }}
+                    onMarcarOcupado={handleMarcarOcupado}
+                />
+            )}
+
+            {aluguelRecibo && (
+                <ReciboModal
+                    aluguelId={aluguelRecibo.id}
+                    onClose={() => setAluguelRecibo(null)}
                 />
             )}
         </div>
