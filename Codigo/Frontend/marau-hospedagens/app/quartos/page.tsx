@@ -5,6 +5,8 @@ import { useSearchParams } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 import QuartoCard from "@/components/QuartoCard";
 import CadastrarQuartoModal from "@/components/CadastrarQuartoModal";
+import AvailabilityCalendar from "@/components/AvailabilityCalendar";
+import NovaReservaModal from "@/components/NovaReservaModal";
 import { api, ApiError, type Quarto, type Residencia } from "@/lib/api";
 
 function Toast({ onDone }: { onDone: () => void }) {
@@ -48,6 +50,10 @@ function QuartosContent() {
     const [quartos, setQuartos] = useState<Quarto[]>([]);
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState<string | null>(null);
+    const [quartoEmDisponibilidade, setQuartoEmDisponibilidade] = useState<Quarto | null>(null);
+    const [quartoParaReserva, setQuartoParaReserva] = useState<Quarto | null>(null);
+    const [intervaloSelecionado, setIntervaloSelecionado] = useState<{ entrada: string; saida: string } | null>(null);
+    const [modalReservaAberta, setModalReservaAberta] = useState(false);
 
     const searchParams = useSearchParams();
 
@@ -89,6 +95,30 @@ function QuartosContent() {
         setModalAberto(false);
         setShowToast(true);
         carregar();
+    }
+
+    function handleConferirDatas(quarto: Quarto) {
+        setQuartoEmDisponibilidade(quarto);
+        setQuartoParaReserva(quarto);
+        setIntervaloSelecionado(null);
+    }
+
+    function fecharModalDisponibilidade() {
+        setQuartoEmDisponibilidade(null);
+        setQuartoParaReserva(null);
+        setIntervaloSelecionado(null);
+        setModalReservaAberta(false);
+    }
+
+    function abrirModalReserva() {
+        setModalReservaAberta(true);
+        setQuartoEmDisponibilidade(null);
+    }
+
+    function fecharModalReserva() {
+        setModalReservaAberta(false);
+        setQuartoParaReserva(null);
+        setIntervaloSelecionado(null);
     }
 
     return (
@@ -168,7 +198,7 @@ function QuartosContent() {
                                 </div>
                                 <div className="grid grid-cols-3 gap-6">
                                     {quartosFiltrados(residencia).map((q) => (
-                                        <QuartoCard key={q.id} q={q} />
+                                        <QuartoCard key={q.id} q={q} onConferirDatas={handleConferirDatas} />
                                     ))}
                                 </div>
                             </div>
@@ -182,6 +212,74 @@ function QuartosContent() {
                     onClose={() => setModalAberto(false)}
                     onConfirm={handleCadastrado}
                 />
+            )}
+
+            {modalReservaAberta && intervaloSelecionado && quartoParaReserva && (
+                <NovaReservaModal
+                    onClose={fecharModalReserva}
+                    onConfirm={() => {
+                        fecharModalReserva();
+                        fecharModalDisponibilidade();
+                    }}
+                    entradaInicial={intervaloSelecionado.entrada}
+                    saidaInicial={intervaloSelecionado.saida}
+                    residenciaInicial={quartoParaReserva.residencia}
+                    quartoInicial={quartoParaReserva.nome}
+                />
+            )}
+
+            {quartoEmDisponibilidade && (
+                <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 px-4">
+                    <div className="w-full max-w-5xl rounded-3xl bg-white p-6 shadow-2xl">
+                        <div className="flex items-start justify-between gap-4 mb-4">
+                            <div>
+                                <h3 className="text-lg font-semibold" style={{ color: "#1A4A5E" }}>
+                                    Conferir disponibilidade
+                                </h3>
+                                <p className="text-sm text-gray-500">
+                                    {quartoEmDisponibilidade.nome} · {quartoEmDisponibilidade.residencia}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={fecharModalDisponibilidade}
+                                className="rounded-full p-2 text-gray-500 hover:bg-gray-100"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <p className="text-sm text-gray-600 mb-4">
+                            Selecione um intervalo para verificar se o quarto fica disponível.
+                        </p>
+
+                        <AvailabilityCalendar
+                            residenciaInicial={quartoEmDisponibilidade.residencia}
+                            quartoInicial={quartoEmDisponibilidade.nome}
+                            onRangeSelect={(entrada, saida) => setIntervaloSelecionado({ entrada, saida })}
+                        />
+
+                        {intervaloSelecionado && (
+                            <div className="mt-4 rounded-2xl border border-[#E8F0F3] bg-[#F8FBFC] p-4 flex flex-col gap-3">
+                                <div>
+                                    <p className="text-sm font-semibold" style={{ color: "#1A4A5E" }}>
+                                        Intervalo selecionado
+                                    </p>
+                                    <p className="text-sm text-gray-600">Entrada: {intervaloSelecionado.entrada}</p>
+                                    <p className="text-sm text-gray-600">Saída: {intervaloSelecionado.saida}</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={abrirModalReserva}
+                                    className="self-start rounded-xl px-4 py-2 text-sm font-semibold text-white cursor-pointer"
+                                    style={{ backgroundColor: "#1A4A5E" }}
+                                >
+                                    Agendar Reserva
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
             )}
         </div>
     );

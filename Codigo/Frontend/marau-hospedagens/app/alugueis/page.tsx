@@ -238,6 +238,10 @@ export default function AlugueisPage() {
                     aluguel={aluguelSelecionado}
                     onClose={() => setAluguelSelecionado(null)}
                     onCancelar={handleCancelar}
+                    onAtualizar={(atualizado) => {
+                        setAlugueis((prev) => prev.map((item) => item.id === atualizado.id ? atualizado : item));
+                        setAluguelSelecionado(atualizado);
+                    }}
                 />
             )}
         </div>

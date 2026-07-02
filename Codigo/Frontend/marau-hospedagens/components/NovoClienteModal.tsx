@@ -1,16 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { api, ApiError } from "@/lib/api";
+import { useEffect, useState } from "react";
+import { api, ApiError, type Cliente, type ClienteRequest } from "@/lib/api";
 
 type Props = {
     onClose: () => void;
-    onConfirm: () => void;
+    onConfirm: (req?: ClienteRequest) => void;
+    clienteInicial?: Cliente;
 };
 
 const BRAND = "#1A4A5E";
 
-export default function NovoClienteModal({ onClose, onConfirm }: Props) {
+export default function NovoClienteModal({ onClose, onConfirm, clienteInicial }: Props) {
     const [nome, setNome] = useState("");
     const [cpf, setCpf] = useState("");
     const [email, setEmail] = useState("");
@@ -36,6 +37,18 @@ export default function NovoClienteModal({ onClose, onConfirm }: Props) {
     const [enviando, setEnviando] = useState(false);
     const [erro, setErro] = useState<string | null>(null);
 
+    useEffect(() => {
+        if (clienteInicial) {
+            setNome(clienteInicial.nome ?? "");
+            setCpf(clienteInicial.cpf ?? "");
+            setEmail(clienteInicial.email ?? "");
+            setTelefone(clienteInicial.telefone ?? "");
+            setEndereco(clienteInicial.endereco ?? "");
+            setCidade(clienteInicial.endereco?.split(",")[1]?.trim() ?? "");
+            setEstado(clienteInicial.endereco?.split("-")[1]?.trim() ?? "");
+        }
+    }, [clienteInicial]);
+
     const valido =
         nome.trim() !== "" &&
         cpf.length === 14 &&
@@ -49,15 +62,19 @@ export default function NovoClienteModal({ onClose, onConfirm }: Props) {
         setErro(null);
         setEnviando(true);
         try {
-            await api.clientes.criar({
+            const req: ClienteRequest = {
                 nome,
                 cpf,
                 email,
                 telefone,
-                // Backend guarda um único campo de endereço; juntamos endereço + cidade/UF.
                 endereco: `${endereco}${cidade ? `, ${cidade}` : ""}${estado ? ` - ${estado}` : ""}`,
-            });
-            onConfirm();
+            };
+            if (clienteInicial) {
+                await api.clientes.atualizar(clienteInicial.id, req);
+            } else {
+                await api.clientes.criar(req);
+            }
+            onConfirm(req);
         } catch (e) {
             setErro(e instanceof ApiError ? e.message : "Erro ao cadastrar cliente.");
         } finally {
@@ -75,7 +92,7 @@ export default function NovoClienteModal({ onClose, onConfirm }: Props) {
 
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
-                    <h2 className="text-lg font-bold" style={{ color: BRAND }}>Novo Cliente</h2>
+                    <h2 className="text-lg font-bold" style={{ color: BRAND }}>{clienteInicial ? "Editar Cliente" : "Novo Cliente"}</h2>
                     <button onClick={onClose} className="text-gray-400 hover:text-gray-600 cursor-pointer transition-colors">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <line x1="18" y1="6" x2="6" y2="18" />
@@ -205,7 +222,7 @@ export default function NovoClienteModal({ onClose, onConfirm }: Props) {
                         onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.backgroundColor = "#15394d"; }}
                         onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = BRAND; }}
                     >
-                        {enviando ? "Cadastrando..." : "Cadastrar Cliente"}
+                        {enviando ? (clienteInicial ? "Salvando..." : "Cadastrando...") : (clienteInicial ? "Salvar Alterações" : "Cadastrar Cliente")}
                     </button>
                 </div>
             </div>

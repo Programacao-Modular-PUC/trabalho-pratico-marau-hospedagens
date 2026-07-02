@@ -1,6 +1,11 @@
 import type { Quarto } from "@/lib/api";
 
-export default function QuartoCard({ q }: { q: Quarto }) {
+type Props = {
+    q: Quarto;
+    onConferirDatas?: (quarto: Quarto) => void;
+};
+
+export default function QuartoCard({ q, onConferirDatas }: Props) {
     const disponivel = q.status === "disponivel";
 
     return (
@@ -58,8 +63,10 @@ export default function QuartoCard({ q }: { q: Quarto }) {
                 {/* Botão Reserva */}
                 <div className="flex justify-end pt-1">
                     <button
+                        type="button"
                         className="px-5 py-2 rounded-xl text-sm font-semibold border-2 transition-colors cursor-pointer"
                         style={{ borderColor: "#1A4A5E", color: "#1A4A5E" }}
+                        onClick={() => onConferirDatas?.(q)}
                         onMouseEnter={(e) => {
                             e.currentTarget.style.backgroundColor = "#1A4A5E";
                             e.currentTarget.style.color = "white";

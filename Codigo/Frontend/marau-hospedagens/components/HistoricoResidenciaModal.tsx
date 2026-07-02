@@ -1,17 +1,9 @@
 "use client";
 
-type StatusAluguel = "ocupado" | "reserva" | "concluido";
+import { useEffect, useState } from "react";
+import { api, ApiError, type Aluguel } from "@/lib/api";
 
-type Aluguel = {
-    id: number;
-    cliente: string;
-    quarto: string;
-    entrada: string;
-    saida: string;
-    diarias: number;
-    valorFinal: string;
-    status: StatusAluguel;
-};
+type StatusAluguel = "ocupado" | "reserva" | "concluido";
 
 type Residencia = {
     id: number;
@@ -26,18 +18,6 @@ type Props = {
 };
 
 const BRAND = "#1A4A5E";
-
-// Mock — substituir por fetch da API quando o back estiver pronto
-const historicoPorResidencia: Record<number, Aluguel[]> = {
-    1: [
-        { id: 1, cliente: "Ana Lima",    quarto: "Qto 02", entrada: "17/04 12:00", saida: "21/04 12:00", diarias: 4, valorFinal: "R$ 800,00", status: "ocupado" },
-        { id: 2, cliente: "João Santos", quarto: "Qto 01", entrada: "12/04 12:00", saida: "16/04 12:00", diarias: 4, valorFinal: "R$ 480,00", status: "concluido" },
-    ],
-    2: [
-        { id: 3, cliente: "Marina Faria",  quarto: "Qto 01", entrada: "20/04 12:00", saida: "25/04 12:00", diarias: 5, valorFinal: "R$ 475,00", status: "reserva" },
-        { id: 4, cliente: "Carlos Mendes", quarto: "Qto 02", entrada: "10/04 12:00", saida: "14/04 12:00", diarias: 4, valorFinal: "R$ 360,00", status: "concluido" },
-    ],
-};
 
 function StatusBadge({ status }: { status: StatusAluguel }) {
     const map: Record<StatusAluguel, { label: string; bg: string; color: string }> = {
@@ -57,10 +37,34 @@ function StatusBadge({ status }: { status: StatusAluguel }) {
 }
 
 export default function HistoricoResidenciaModal({ residencia: r, onClose }: Props) {
-    const historico = historicoPorResidencia[r.id] ?? [];
+    const [historico, setHistorico] = useState<Aluguel[]>([]);
+    const [carregando, setCarregando] = useState(true);
+    const [erro, setErro] = useState<string | null>(null);
+
+    useEffect(() => {
+        let ativo = true;
+
+        async function carregar() {
+            setCarregando(true);
+            setErro(null);
+            try {
+                const dados = await api.alugueis.listar(r.nome);
+                if (ativo) setHistorico(dados);
+            } catch (e) {
+                if (ativo) setErro(e instanceof ApiError ? e.message : "Erro ao carregar o histórico da residência.");
+            } finally {
+                if (ativo) setCarregando(false);
+            }
+        }
+
+        void carregar();
+        return () => {
+            ativo = false;
+        };
+    }, [r.nome]);
 
     const totalValor = historico.reduce((acc, a) => {
-        const num = parseFloat(a.valorFinal.replace("R$ ", "").replace(",", "."));
+        const num = parseFloat(a.valorFinal.replace("R$", "").replace(".", "").replace(",", ".").trim());
         return acc + (isNaN(num) ? 0 : num);
     }, 0);
 
@@ -113,7 +117,11 @@ export default function HistoricoResidenciaModal({ residencia: r, onClose }: Pro
                 <div className="px-6 py-5 max-h-[50vh] overflow-y-auto">
                     <h3 className="text-sm font-bold text-gray-700 mb-4">Histórico de Estadias</h3>
 
-                    {historico.length === 0 ? (
+                    {carregando ? (
+                        <p className="text-sm text-gray-400">Carregando histórico...</p>
+                    ) : erro ? (
+                        <p className="text-sm text-red-500">{erro}</p>
+                    ) : historico.length === 0 ? (
                         <p className="text-sm text-gray-400">Nenhuma estadia registrada.</p>
                     ) : (
                         <div className="flex flex-col gap-3">
