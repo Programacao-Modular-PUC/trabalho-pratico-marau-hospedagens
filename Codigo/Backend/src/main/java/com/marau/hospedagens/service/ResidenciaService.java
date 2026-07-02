@@ -89,7 +89,6 @@ public class ResidenciaService {
                 r.getCor(),
                 total,
                 disponiveis,
-                ocupados
-        );
+                ocupados);
     }
 }

@@ -6,8 +6,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
- * Stub de envio de e-mail. Em producao, plugar um JavaMailSender / provedor SMTP.
- * Por ora apenas registra a acao em log para que o botao "Enviar por Email" funcione.
+ * Stub de envio de e-mail. Em producao, plugar um JavaMailSender / provedor
+ * SMTP.
+ * Por ora apenas registra a acao em log para que o botao "Enviar por Email"
+ * funcione.
  */
 @Service
 public class EmailService {

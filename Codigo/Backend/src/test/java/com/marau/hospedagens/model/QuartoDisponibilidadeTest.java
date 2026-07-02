@@ -55,8 +55,7 @@ class QuartoDisponibilidadeTest {
     void fromLabel_valorInvalido_lancaExcecao() {
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> StatusQuarto.fromLabel("Indisponível")
-        );
+                () -> StatusQuarto.fromLabel("Indisponível"));
 
         assertEquals("Status de quarto invalido: Indisponível", ex.getMessage());
     }
