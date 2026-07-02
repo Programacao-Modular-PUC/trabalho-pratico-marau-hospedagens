@@ -58,10 +58,51 @@ public class Quarto {
     @Builder.Default
     private Set<Comodidade> comodidades = new HashSet<>();
 
-    /** Preco final da diaria = valor base + comodidades. */
+    @Builder.Default
+    @Column(name = "num_camas")
+    private Integer numCamas = 1;
+
+    @Builder.Default
+    @Column(name = "tem_berco")
+    private Boolean temBerco = false;
+
+    @Column(name = "taxa_berco", precision = 10, scale = 2)
+    private BigDecimal taxaBerco;
+
+    @Builder.Default
+    @Column(name = "adicional_cama_extra", precision = 10, scale = 2)
+    private BigDecimal adicionalCamaExtra = BigDecimal.ZERO;
+
+    @Builder.Default
+    @Column(name = "percentual_hospede", precision = 10, scale = 2)
+    private BigDecimal percentualHospede = BigDecimal.ZERO;
+
+    @Builder.Default
+    @Column(name = "numero_hospedes")
+    private Integer numeroHospedes = 1;
+
+    /** Preco final da diaria seguindo as regras do sprint 2 quando disponíveis. */
     @Transient
     public BigDecimal getPreco() {
         BigDecimal total = (valorBase == null) ? BigDecimal.ZERO : valorBase;
+
+        if (tipo == TipoQuarto.INDIVIDUAL && numCamas != null && numCamas > 1) {
+            BigDecimal adicional = adicionalCamaExtra != null ? adicionalCamaExtra : BigDecimal.ZERO;
+            total = total.add(adicional.multiply(BigDecimal.valueOf(Math.max(0, numCamas - 1))));
+        }
+
+        if (tipo == TipoQuarto.DUPLO && Boolean.TRUE.equals(temBerco)) {
+            BigDecimal taxa = taxaBerco != null ? taxaBerco : BigDecimal.ZERO;
+            total = total.add(taxa);
+        }
+
+        if (tipo == TipoQuarto.FAMILIA && percentualHospede != null && percentualHospede.signum() > 0 && numeroHospedes != null && numeroHospedes > 0) {
+            int hospedes = Math.max(1, numeroHospedes);
+            int faixas = Math.max(1, Math.min(hospedes / 2, 4));
+            BigDecimal adicional = total.multiply(percentualHospede).multiply(BigDecimal.valueOf(faixas));
+            total = total.add(adicional);
+        }
+
         if (comodidades != null) {
             for (Comodidade c : comodidades) {
                 if (c.getPreco() != null) {

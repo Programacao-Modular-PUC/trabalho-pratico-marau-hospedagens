@@ -74,6 +74,12 @@ public class QuartoService {
                 .cor(req.cor() != null ? req.cor() : "#1A4A5E")
                 .residencia(residencia)
                 .comodidades(resolverComodidades(req.comodidadeIds()))
+                .numCamas(req.numCamas() != null ? req.numCamas() : 1)
+                .temBerco(req.temBerco() != null ? req.temBerco() : false)
+                .taxaBerco(req.taxaBerco())
+                .adicionalCamaExtra(req.adicionalCamaExtra() != null ? req.adicionalCamaExtra() : BigDecimal.ZERO)
+                .percentualHospede(req.percentualHospede() != null ? req.percentualHospede() : BigDecimal.ZERO)
+                .numeroHospedes(req.numeroHospedes() != null ? req.numeroHospedes() : 1)
                 .build();
         return toResponse(quartoRepository.save(q));
     }
@@ -95,6 +101,24 @@ public class QuartoService {
         }
         if (req.comodidadeIds() != null) {
             q.setComodidades(resolverComodidades(req.comodidadeIds()));
+        }
+        if (req.numCamas() != null) {
+            q.setNumCamas(req.numCamas());
+        }
+        if (req.temBerco() != null) {
+            q.setTemBerco(req.temBerco());
+        }
+        if (req.taxaBerco() != null) {
+            q.setTaxaBerco(req.taxaBerco());
+        }
+        if (req.adicionalCamaExtra() != null) {
+            q.setAdicionalCamaExtra(req.adicionalCamaExtra());
+        }
+        if (req.percentualHospede() != null) {
+            q.setPercentualHospede(req.percentualHospede());
+        }
+        if (req.numeroHospedes() != null) {
+            q.setNumeroHospedes(req.numeroHospedes());
         }
         return toResponse(quartoRepository.save(q));
     }
