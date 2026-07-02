@@ -43,6 +43,7 @@ export default function ResidenciasPage() {
     const [erro, setErro] = useState<string | null>(null);
     const [modalAberto, setModalAberto] = useState(false);
     const [showToast, setShowToast] = useState(false);
+    const [residenciaEditando, setResidenciaEditando] = useState<Residencia | null>(null);
 
     const carregar = useCallback(async () => {
         setCarregando(true);
@@ -62,11 +63,22 @@ export default function ResidenciasPage() {
         })();
     }, [carregar]);
 
-    async function handleCadastrar(req: ResidenciaRequest) {
-        await api.residencias.criar(req);
+    async function handleSalvar(req: ResidenciaRequest) {
+        if (residenciaEditando) {
+            await api.residencias.atualizar(residenciaEditando.id, req);
+        } else {
+            await api.residencias.criar(req);
+        }
         setModalAberto(false);
+        setResidenciaEditando(null);
         setShowToast(true);
-        carregar();
+        await carregar();
+    }
+
+    async function handleExcluir(id: number) {
+        if (!window.confirm("Deseja realmente excluir esta residência?")) return;
+        await api.residencias.deletar(id);
+        await carregar();
     }
 
     return (
@@ -76,7 +88,7 @@ export default function ResidenciasPage() {
             <PageHeader
                 titulo="Residências"
                 subtitulo="Gerencie as propriedades cadastradas no sistema"
-                botao={{ label: "Cadastrar Residência", onClick: () => setModalAberto(true) }}
+                botao={{ label: "Cadastrar Residência", onClick: () => { setResidenciaEditando(null); setModalAberto(true); } }}
             />
 
             {erro && (
@@ -92,15 +104,24 @@ export default function ResidenciasPage() {
             ) : (
                 <div className="grid grid-cols-2 gap-6">
                     {residencias.map((r) => (
-                        <ResidenciaCard key={r.id} r={r} />
+                        <ResidenciaCard key={r.id} r={r} onEditar={() => { setResidenciaEditando(r); setModalAberto(true); }} onExcluir={handleExcluir} />
                     ))}
                 </div>
             )}
 
             {modalAberto && (
                 <CadastrarResidenciaModal
-                    onClose={() => setModalAberto(false)}
-                    onConfirm={handleCadastrar}
+                    onClose={() => { setModalAberto(false); setResidenciaEditando(null); }}
+                    onConfirm={handleSalvar}
+                    residenciaInicial={residenciaEditando ? {
+                        id: residenciaEditando.id,
+                        nome: residenciaEditando.nome,
+                        endereco: residenciaEditando.endereco,
+                        cep: residenciaEditando.cep,
+                        telefone: residenciaEditando.telefone,
+                        email: residenciaEditando.email,
+                        cor: residenciaEditando.cor,
+                    } : undefined}
                 />
             )}
         </div>

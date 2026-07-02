@@ -61,6 +61,7 @@ export default function ClientesPage() {
     const [modalAberto, setModalAberto] = useState(false);
     const [showToast, setShowToast] = useState(false);
     const [clienteSelecionadoId, setClienteSelecionadoId] = useState<number | null>(null);
+    const [clienteEditando, setClienteEditando] = useState<Cliente | null>(null);
 
     const carregar = useCallback(async () => {
         setCarregando(true);
@@ -82,8 +83,15 @@ export default function ClientesPage() {
 
     async function handleCadastrado() {
         setModalAberto(false);
+        setClienteEditando(null);
         setShowToast(true);
-        carregar();
+        await carregar();
+    }
+
+    async function handleExcluir(id: number) {
+        if (!window.confirm("Deseja realmente excluir este cliente?")) return;
+        await api.clientes.deletar(id);
+        await carregar();
     }
 
     return (
@@ -93,7 +101,7 @@ export default function ClientesPage() {
             <PageHeader
                 titulo="Clientes"
                 subtitulo="Cadastro e autenticação de hóspedes"
-                botao={{ label: "Novo Cliente", onClick: () => setModalAberto(true) }}
+                botao={{ label: "Novo Cliente", onClick: () => { setClienteEditando(null); setModalAberto(true); } }}
             />
 
             {erro && (
@@ -137,21 +145,29 @@ export default function ClientesPage() {
                                 <span>
                   <StatusBadge tipo={c.statusTipo} label={c.ultimaHospedagem} />
                 </span>
-                                <button
-                                    onClick={() => setClienteSelecionadoId(c.id)}
-                                    className="px-4 py-1.5 rounded-xl text-sm font-medium border-2 transition-colors cursor-pointer"
-                                    style={{ borderColor: "#1A4A5E", color: "#1A4A5E" }}
-                                    onMouseEnter={(e) => {
-                                        e.currentTarget.style.backgroundColor = "#1A4A5E";
-                                        e.currentTarget.style.color = "white";
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        e.currentTarget.style.backgroundColor = "transparent";
-                                        e.currentTarget.style.color = "#1A4A5E";
-                                    }}
-                                >
-                                    Ver
-                                </button>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setClienteSelecionadoId(c.id)}
+                                        className="px-4 py-1.5 rounded-xl text-sm font-medium border-2 transition-colors cursor-pointer"
+                                        style={{ borderColor: "#1A4A5E", color: "#1A4A5E" }}
+                                    >
+                                        Ver
+                                    </button>
+                                    <button
+                                        onClick={() => { setClienteEditando(c); setModalAberto(true); }}
+                                        className="px-4 py-1.5 rounded-xl text-sm font-medium border-2 transition-colors cursor-pointer"
+                                        style={{ borderColor: "#F59E0B", color: "#F59E0B" }}
+                                    >
+                                        Editar
+                                    </button>
+                                    <button
+                                        onClick={() => void handleExcluir(c.id)}
+                                        className="px-4 py-1.5 rounded-xl text-sm font-medium border-2 transition-colors cursor-pointer"
+                                        style={{ borderColor: "#EF4444", color: "#EF4444" }}
+                                    >
+                                        Excluir
+                                    </button>
+                                </div>
                             </div>
                         ))
                     )}
@@ -160,8 +176,9 @@ export default function ClientesPage() {
 
             {modalAberto && (
                 <NovoClienteModal
-                    onClose={() => setModalAberto(false)}
+                    onClose={() => { setModalAberto(false); setClienteEditando(null); }}
                     onConfirm={handleCadastrado}
+                    clienteInicial={clienteEditando ?? undefined}
                 />
             )}
             {clienteSelecionadoId !== null && (

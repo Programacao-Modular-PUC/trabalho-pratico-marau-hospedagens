@@ -7,6 +7,8 @@ type Props = {
     onRangeSelect?: (entrada: string, saida: string) => void;
     onResidenciaChange?: (v: string) => void;
     onQuartoChange?: (v: string) => void;
+    residenciaInicial?: string;
+    quartoInicial?: string;
 };
 
 function buildCalendar(year: number, month: number): (number | null)[] {
@@ -64,6 +66,8 @@ function SelectCalendario({ label, value, options, onChange, disabled }: {
     label: string; value: string; options: string[];
     onChange: (v: string) => void; disabled?: boolean;
 }) {
+    const placeholder = disabled ? "Sem opções" : label;
+
     return (
         <button
             className="flex items-center gap-2 border border-gray-200 rounded-lg px-4 py-2 text-sm bg-white shadow-sm relative cursor-pointer"
@@ -75,10 +79,14 @@ function SelectCalendario({ label, value, options, onChange, disabled }: {
                 className="absolute inset-0 opacity-0 cursor-pointer w-full"
                 disabled={disabled}
             >
-                <option value="">{label}</option>
+                {!value && (
+                    <option value="" disabled>
+                        {placeholder}
+                    </option>
+                )}
                 {options.map((o) => <option key={o} value={o}>{o}</option>)}
             </select>
-            <span>{value || label}</span>
+            <span>{value || placeholder}</span>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <polyline points="6 9 12 15 18 9" />
             </svg>
@@ -86,7 +94,7 @@ function SelectCalendario({ label, value, options, onChange, disabled }: {
     );
 }
 
-export default function AvailabilityCalendar({ onRangeSelect, onResidenciaChange, onQuartoChange }: Props) {
+export default function AvailabilityCalendar({ onRangeSelect, onResidenciaChange, onQuartoChange, residenciaInicial, quartoInicial }: Props) {
     const now = new Date();
     const [mes, setMes] = useState(now.getMonth());
     const [ano, setAno] = useState(now.getFullYear());
@@ -105,6 +113,11 @@ export default function AvailabilityCalendar({ onRangeSelect, onResidenciaChange
         api.residencias.listar().then(setResidencias).catch(() => {});
         api.quartos.listar().then(setQuartos).catch(() => {});
     }, []);
+
+    useEffect(() => {
+        if (residenciaInicial) setResidenciaSelecionada(residenciaInicial);
+        if (quartoInicial) setQuartoSelecionado(quartoInicial);
+    }, [residenciaInicial, quartoInicial]);
 
     const quartoAtualObj = quartos.find(
         (q) => q.residencia === residenciaSelecionada && q.nome === quartoSelecionado

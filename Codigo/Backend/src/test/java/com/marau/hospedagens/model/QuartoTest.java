@@ -105,6 +105,32 @@ class QuartoTest {
         assertEquals(0, new BigDecimal("220.00").compareTo(quarto.getPreco()));
     }
 
+    @Test
+    @DisplayName("Quarto duplo com berço aplica taxa adicional")
+    void duplo_comBerco_aplicaTaxa() {
+        Quarto quarto = Quarto.builder()
+                .tipo(TipoQuarto.DUPLO)
+                .valorBase(new BigDecimal("160.00"))
+                .temBerco(true)
+                .taxaBerco(new BigDecimal("20.00"))
+                .build();
+
+        assertEquals(0, new BigDecimal("180.00").compareTo(quarto.getPreco()));
+    }
+
+    @Test
+    @DisplayName("Quarto familia com percentual por hóspede calcula valor conforme grupo")
+    void familia_comPercentualPorHospede_aplicaDescontoProgressivo() {
+        Quarto quarto = Quarto.builder()
+                .tipo(TipoQuarto.FAMILIA)
+                .valorBase(new BigDecimal("250.00"))
+                .percentualHospede(new BigDecimal("0.10"))
+                .numeroHospedes(4)
+                .build();
+
+        assertEquals(0, new BigDecimal("300.00").compareTo(quarto.getPreco()));
+    }
+
     @ParameterizedTest
     @EnumSource(TipoQuarto.class)
     @DisplayName("Todos os tipos: valor base nulo retorna zero")

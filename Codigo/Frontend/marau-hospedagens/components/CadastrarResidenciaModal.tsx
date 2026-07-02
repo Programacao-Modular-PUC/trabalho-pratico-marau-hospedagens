@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { ApiError, type ResidenciaRequest } from "@/lib/api";
+import { useEffect, useState } from "react";
+import { ApiError, type Residencia, type ResidenciaRequest } from "@/lib/api";
 
 type Props = {
     onClose: () => void;
     onConfirm: (req: ResidenciaRequest) => Promise<void>;
+    residenciaInicial?: Residencia;
 };
 
 const BRAND = "#1A4A5E";
@@ -60,7 +61,7 @@ function StepIndicator({ step }: { step: number }) {
     );
 }
 
-export default function CadastrarResidenciaModal({ onClose, onConfirm }: Props) {
+export default function CadastrarResidenciaModal({ onClose, onConfirm, residenciaInicial }: Props) {
     const [step, setStep] = useState(1);
 
     // Step 1
@@ -77,6 +78,19 @@ export default function CadastrarResidenciaModal({ onClose, onConfirm }: Props) 
 
     const [enviando, setEnviando] = useState(false);
     const [erro, setErro] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (residenciaInicial) {
+            setNome(residenciaInicial.nome ?? "");
+            setCor(residenciaInicial.cor ?? coresDisponiveis[0].value);
+            setEndereco(residenciaInicial.endereco?.split(",")[0] ?? "");
+            setNumero(residenciaInicial.endereco?.match(/,(.*?)·/)?.[1]?.trim() ?? "");
+            setBairro(residenciaInicial.endereco?.split("·")[1]?.trim() ?? "");
+            setCep(residenciaInicial.cep ?? "");
+            setTelefone(residenciaInicial.telefone ?? "");
+            setEmail(residenciaInicial.email ?? "");
+        }
+    }, [residenciaInicial]);
 
     const step1Valido = nome.trim() !== "";
     const step2Valido = endereco.trim() !== "" && numero.trim() !== "" && bairro.trim() !== "" && cep.trim() !== "" && telefone.trim() !== "" && email.trim() !== "";
@@ -123,7 +137,7 @@ export default function CadastrarResidenciaModal({ onClose, onConfirm }: Props) 
 
                     {/* Header */}
                     <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
-                        <h2 className="text-lg font-bold" style={{ color: BRAND }}>Cadastrar Residência</h2>
+                        <h2 className="text-lg font-bold" style={{ color: BRAND }}>{residenciaInicial ? "Editar Residência" : "Cadastrar Residência"}</h2>
                         <button onClick={onClose} className="text-gray-400 hover:text-gray-600 cursor-pointer transition-colors">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                 <line x1="18" y1="6" x2="6" y2="18" />
@@ -296,7 +310,7 @@ export default function CadastrarResidenciaModal({ onClose, onConfirm }: Props) 
                             onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.backgroundColor = "#15394d"; }}
                             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = BRAND; }}
                         >
-                            {step === 2 ? (enviando ? "Cadastrando..." : "Cadastrar Residência") : "Próximo"}
+                            {step === 2 ? (enviando ? (residenciaInicial ? "Salvando..." : "Cadastrando...") : (residenciaInicial ? "Salvar Alterações" : "Cadastrar Residência")) : "Próximo"}
                         </button>
                     </div>
                 </div>

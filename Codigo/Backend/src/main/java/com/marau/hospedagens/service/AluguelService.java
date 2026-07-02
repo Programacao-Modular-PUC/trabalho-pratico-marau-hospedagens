@@ -2,6 +2,8 @@ package com.marau.hospedagens.service;
 
 import com.marau.hospedagens.dto.AluguelRequest;
 import com.marau.hospedagens.dto.AluguelResponse;
+import com.marau.hospedagens.exception.DataInvalidaException;
+import com.marau.hospedagens.exception.QuartoIndisponivelException;
 import com.marau.hospedagens.exception.ResourceNotFoundException;
 import com.marau.hospedagens.model.Aluguel;
 import com.marau.hospedagens.model.Cliente;
@@ -58,9 +60,12 @@ public class AluguelService {
 
     @Transactional
     public AluguelResponse criar(AluguelRequest req) {
+        validarPeriodo(req);
+
         Cliente cliente = clienteRepository.findById(req.clienteId())
                 .orElseThrow(() -> ResourceNotFoundException.of("Cliente", req.clienteId()));
         Quarto quarto = quartoService.buscarEntidade(req.quartoId());
+        validarDisponibilidade(quarto.getId(), req);
 
         int diarias = calcularDiarias(req);
         BigDecimal precoDiaria = quarto.getPreco();
@@ -84,8 +89,11 @@ public class AluguelService {
 
     @Transactional
     public AluguelResponse atualizar(Long id, AluguelRequest req) {
+        validarPeriodo(req);
+
         Aluguel aluguel = buscarEntidade(id);
         Quarto quarto = quartoService.buscarEntidade(req.quartoId());
+        validarDisponibilidade(quarto.getId(), req, id);
         Cliente cliente = clienteRepository.findById(req.clienteId())
                 .orElseThrow(() -> ResourceNotFoundException.of("Cliente", req.clienteId()));
 
@@ -126,6 +134,27 @@ public class AluguelService {
             quarto.setStatus(StatusQuarto.DISPONIVEL);
         }
         aluguelRepository.delete(aluguel);
+    }
+
+    private void validarPeriodo(AluguelRequest req) {
+        if (req.entrada() == null || req.saida() == null) {
+            throw new DataInvalidaException("As datas de entrada e saída são obrigatórias");
+        }
+        if (!req.saida().isAfter(req.entrada())) {
+            throw new DataInvalidaException("A data de saída deve ser posterior à data de entrada");
+        }
+    }
+
+    private void validarDisponibilidade(Long quartoId, AluguelRequest req) {
+        validarDisponibilidade(quartoId, req, null);
+    }
+
+    private void validarDisponibilidade(Long quartoId, AluguelRequest req, Long idIgnorar) {
+        List<Aluguel> conflitos = aluguelRepository.findOverlappingByQuartoIdAndPeriod(quartoId, req.entrada(), req.saida());
+        boolean existeConflito = conflitos.stream().anyMatch(aluguel -> idIgnorar == null || !idIgnorar.equals(aluguel.getId()));
+        if (existeConflito) {
+            throw new QuartoIndisponivelException("O quarto já está reservado para parte do período informado");
+        }
     }
 
     private int calcularDiarias(AluguelRequest req) {
