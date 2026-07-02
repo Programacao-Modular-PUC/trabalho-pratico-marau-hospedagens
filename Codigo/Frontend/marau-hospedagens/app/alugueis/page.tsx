@@ -48,6 +48,7 @@ function StatusBadge({ status }: { status: Aluguel["status"] }) {
         concluido: { label: "CONCLUÍDO", bg: "#f3f4f6", color: "#6b7280" },
     };
     const s = map[status];
+
     return (
         <span
             className="px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap"
@@ -67,7 +68,9 @@ type TabelaProps = {
 function TabelaAlugueis({ itens, onVerDetalhes, onVerRecibo }: TabelaProps) {
     if (itens.length === 0) {
         return (
-            <p className="text-sm text-gray-400 px-6 py-6">Nenhum aluguel encontrado.</p>
+            <p className="text-sm text-gray-400 px-6 py-6">
+                Nenhum aluguel encontrado.
+            </p>
         );
     }
 
@@ -90,7 +93,9 @@ function TabelaAlugueis({ itens, onVerDetalhes, onVerRecibo }: TabelaProps) {
             {itens.map((a, i) => (
                 <div
                     key={a.id}
-                    className={`grid px-6 py-4 items-center text-sm text-gray-600 border-b border-gray-100 hover:bg-gray-50 transition-colors ${i === itens.length - 1 ? "border-b-0" : ""}`}
+                    className={`grid px-6 py-4 items-center text-sm text-gray-600 border-b border-gray-100 hover:bg-gray-50 transition-colors ${
+                        i === itens.length - 1 ? "border-b-0" : ""
+                    }`}
                     style={{ gridTemplateColumns: COLS }}
                 >
                     <span className="font-semibold text-gray-800">{a.cliente}</span>
@@ -99,7 +104,9 @@ function TabelaAlugueis({ itens, onVerDetalhes, onVerRecibo }: TabelaProps) {
                     <span>{a.saida}</span>
                     <span>{a.diarias}</span>
                     <span className="font-semibold text-gray-800">{a.valorFinal}</span>
-                    <span><StatusBadge status={a.status} /></span>
+                    <span>
+                        <StatusBadge status={a.status} />
+                    </span>
                     <button
                         className="px-4 py-1.5 rounded-xl text-sm font-medium border-2 transition-colors cursor-pointer"
                         style={{ borderColor: BRAND, color: BRAND }}
@@ -109,14 +116,6 @@ function TabelaAlugueis({ itens, onVerDetalhes, onVerRecibo }: TabelaProps) {
                             } else {
                                 onVerDetalhes(a);
                             }
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = BRAND;
-                            e.currentTarget.style.color = "white";
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = "transparent";
-                            e.currentTarget.style.color = BRAND;
                         }}
                     >
                         {a.acaoLabel}
@@ -132,6 +131,7 @@ export default function AlugueisPage() {
     const [residencias, setResidencias] = useState<Residencia[]>([]);
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState<string | null>(null);
+
     const [residenciaSelecionada, setResidenciaSelecionada] = useState("Todas");
     const [aluguelSelecionado, setAluguelSelecionado] = useState<Aluguel | null>(null);
     const [showToast, setShowToast] = useState(false);
@@ -140,8 +140,13 @@ export default function AlugueisPage() {
     const carregar = useCallback(async () => {
         setCarregando(true);
         setErro(null);
+
         try {
-            const [as, rs] = await Promise.all([api.alugueis.listar(), api.residencias.listar()]);
+            const [as, rs] = await Promise.all([
+                api.alugueis.listar(),
+                api.residencias.listar(),
+            ]);
+
             setAlugueis(as);
             setResidencias(rs);
         } catch (e) {
@@ -152,9 +157,7 @@ export default function AlugueisPage() {
     }, []);
 
     useEffect(() => {
-        void (async () => {
-            await carregar();
-        })();
+        void carregar();
     }, [carregar]);
 
     const nomesResidencias = residencias.map((r) => r.nome);
@@ -165,7 +168,11 @@ export default function AlugueisPage() {
     async function handleCancelar(id: number) {
         try {
             await api.alugueis.cancelar(id);
-            setAlugueis((prev) => prev.filter((a) => a.id !== id));
+
+            setAlugueis((prev) =>
+                prev.filter((a) => a.id !== id)
+            );
+
             setAluguelSelecionado(null);
             setShowToast(true);
         } catch (e) {
@@ -173,14 +180,13 @@ export default function AlugueisPage() {
         }
     }
 
-    async function handleMarcarOcupado(id: number) {
-        try {
-            const atualizado = await api.alugueis.atualizarStatus(id, "Ocupado");
-            setAlugueis((prev) => prev.map((a) => (a.id === id ? atualizado : a)));
-            setAluguelSelecionado(atualizado);
-        } catch (e) {
-            setErro(e instanceof ApiError ? e.message : "Erro ao atualizar status da reserva.");
-        }
+    // ✅ CORREÇÃO PRINCIPAL AQUI
+    function handleAtualizarAluguel(atualizado: Aluguel) {
+        setAlugueis((prev) =>
+            prev.map((a) =>
+                a.id === atualizado.id ? atualizado : a
+            )
+        );
     }
 
     return (
@@ -193,17 +199,25 @@ export default function AlugueisPage() {
             />
 
             {erro && (
-                <div className="mb-6 px-4 py-3 rounded-xl text-sm" style={{ backgroundColor: "#FEF3F2", color: "#B91C1C" }}>
+                <div
+                    className="mb-6 px-4 py-3 rounded-xl text-sm"
+                    style={{ backgroundColor: "#FEF3F2", color: "#B91C1C" }}
+                >
                     {erro}
                 </div>
             )}
 
             <div className="flex items-center gap-3 mb-8">
-                <label className="text-sm font-semibold text-gray-600">Residência:</label>
+                <label className="text-sm font-semibold text-gray-600">
+                    Residência:
+                </label>
+
                 <button className="flex items-center gap-2 border border-gray-200 rounded-lg px-4 py-2 text-sm text-gray-700 bg-white shadow-sm relative cursor-pointer">
                     <select
                         value={residenciaSelecionada}
-                        onChange={(e) => setResidenciaSelecionada(e.target.value)}
+                        onChange={(e) =>
+                            setResidenciaSelecionada(e.target.value)
+                        }
                         className="absolute inset-0 opacity-0 cursor-pointer w-full"
                     >
                         <option>Todas</option>
@@ -211,32 +225,36 @@ export default function AlugueisPage() {
                             <option key={r}>{r}</option>
                         ))}
                     </select>
+
                     {residenciaSelecionada}
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+
+                    <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                    >
                         <polyline points="6 9 12 15 18 9" />
                     </svg>
                 </button>
             </div>
 
             {carregando ? (
-                <p className="text-sm text-gray-400">Carregando aluguéis...</p>
+                <p className="text-sm text-gray-400">
+                    Carregando aluguéis...
+                </p>
             ) : (
                 <div className="flex flex-col gap-10">
                     {nomesResidencias
-                        .filter((r) => residenciaSelecionada === "Todas" || r === residenciaSelecionada)
+                        .filter(
+                            (r) =>
+                                residenciaSelecionada === "Todas" ||
+                                r === residenciaSelecionada
+                        )
                         .map((residencia) => (
                             <div key={residencia}>
-                                <div className="flex items-center gap-3 mb-3">
-                                    <h2 className="text-base font-bold" style={{ color: BRAND }}>
-                                        {residencia}
-                                    </h2>
-                                    <span
-                                        className="text-xs font-semibold px-2.5 py-0.5 rounded-full"
-                                        style={{ backgroundColor: "#E8F0F3", color: "#1A4A5E" }}
-                                    >
-                                        {aluguelFiltrado(residencia).length} registro{aluguelFiltrado(residencia).length !== 1 ? "s" : ""}
-                                    </span>
-                                </div>
                                 <TabelaAlugueis
                                     itens={aluguelFiltrado(residencia)}
                                     onVerDetalhes={setAluguelSelecionado}
@@ -252,7 +270,7 @@ export default function AlugueisPage() {
                     aluguel={aluguelSelecionado}
                     onClose={() => setAluguelSelecionado(null)}
                     onCancelar={handleCancelar}
-                    onMarcarOcupado={handleMarcarOcupado}
+                    onAtualizar={handleAtualizarAluguel} // ✅ AQUI ESTÁ A CORREÇÃO
                 />
             )}
 
